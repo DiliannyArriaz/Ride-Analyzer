@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="32dp" />
+
+    <Button
+        android:id="@+id/startAccessibilityButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/start_accessibility_service"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/stopAccessibilityButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/stop_accessibility_service"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/startRecordingButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start Screen Recording"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/stopRecordingButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stop Screen Recording"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/startRecordingTestModeButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start Screen Recording (Test Mode)"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/grantPermissionsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/grant_permissions"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/reviewPermissionsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/review_permissions"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/testOverlayButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/test_overlay"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/testTextOverlayButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Test Text Overlay"
+        android:layout_marginBottom="8dp" />
+
+</LinearLayout>
