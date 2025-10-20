@@ -32,7 +32,16 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
+        debug {
+            debuggable true
+            // Add this to help with file locking issues
+            packagingOptions {
+                doNotStrip "*/*/libtensorflowlite_jni.so"
+                doNotStrip "*/*/libmlkit_google_ocr_pipeline.so"
+            }
+        }
     }
+    
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -44,6 +53,26 @@ android {
         viewBinding true
     }
     
+    // Add these options to help with file locking issues
+    packagingOptions {
+        pickFirst "**/*.so"
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/license.txt'
+        exclude 'META-INF/NOTICE'
+        exclude 'META-INF/NOTICE.txt'
+        exclude 'META-INF/notice.txt'
+        exclude 'META-INF/ASL2.0'
+        exclude("META-INF/*.kotlin_module")
+    }
+    
+    // Add this to help with incremental builds
+    dexOptions {
+        preDexLibraries = false
+        javaMaxHeapSize "4g"
+    }
+    
     // Skip unit tests for now to avoid build issues
     testOptions {
         unitTests {
@@ -53,6 +82,11 @@ android {
                 enabled = false
             }
         }
+    }
+    
+    // Add this to help with file locking issues
+    aaptOptions {
+        ignoreAssetsPattern = "!.svn:!.git:.*:!CVS:!thumbs.db:!picasa.ini:!*.scc:*~"
     }
 }
 

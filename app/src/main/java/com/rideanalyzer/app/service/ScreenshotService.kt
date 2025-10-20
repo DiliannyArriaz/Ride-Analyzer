@@ -165,10 +165,8 @@ class ScreenshotService : Service() {
                 // Check if the cropped region is mostly black (FLAG_SECURE detection)
                 if (ImagePreprocessor.isMostlyBlack(croppedBitmap)) {
                     Log.d(TAG, "Skipping OCR (black) - capture_blocked_flag_secure")
-                    // Save debug image if in debug mode
-                    if (BuildConfig.DEBUG) {
-                        saveDebugImage(croppedBitmap, "bottom_crop")
-                    }
+                    // Save debug image - disabled to avoid BuildConfig issues
+                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     // Recycle bitmaps
                     if (!croppedBitmap.isRecycled) {
                         croppedBitmap.recycle()
@@ -188,10 +186,8 @@ class ScreenshotService : Service() {
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastOcrAttemptTime < OCR_DEBOUNCE_INTERVAL_MS) {
                         Log.d(TAG, "Skipping OCR due to debounce - ${currentTime - lastOcrAttemptTime}ms since last attempt")
-                        // Save debug image if in debug mode
-                        if (BuildConfig.DEBUG) {
-                            saveDebugImage(croppedBitmap, "bottom_crop")
-                        }
+                        // Save debug image - disabled to avoid BuildConfig issues
+                        // saveDebugImage(croppedBitmap, "bottom_crop")
                         // Recycle bitmaps
                         if (!croppedBitmap.isRecycled) {
                             croppedBitmap.recycle()
@@ -206,10 +202,8 @@ class ScreenshotService : Service() {
                     lastOcrAttemptTime = currentTime
                     Log.d(TAG, "OCR attempt start")
                     
-                    // Save debug image if in debug mode
-                    if (BuildConfig.DEBUG) {
-                        saveDebugImage(croppedBitmap, "bottom_crop")
-                    }
+                    // Save debug image - disabled to avoid BuildConfig issues
+                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     
                     // Indicate we're analyzing
                     isAnalyzing = true
@@ -230,10 +224,8 @@ class ScreenshotService : Service() {
                     }
                 } else {
                     Log.d(TAG, "Image hasn't changed significantly, skipping analysis")
-                    // Save debug image if in debug mode
-                    if (BuildConfig.DEBUG) {
-                        saveDebugImage(croppedBitmap, "bottom_crop")
-                    }
+                    // Save debug image - disabled to avoid BuildConfig issues
+                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     // Image hasn't changed significantly, recycle bitmaps
                     if (!croppedBitmap.isRecycled) {
                         croppedBitmap.recycle()

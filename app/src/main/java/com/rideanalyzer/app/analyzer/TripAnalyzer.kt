@@ -32,6 +32,17 @@ class TripAnalyzer(context: Context) {
         Log.d(TAG, "Show all text for testing: $enabled")
     }
 
+    // Method to check if we have overlay permission
+    private fun hasOverlayPermission(): Boolean {
+        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true // Overlay permission not needed before Android M
+        }
+        Log.d(TAG, "Overlay permission check: $hasPermission")
+        return hasPermission
+    }
+
     /**
      * Analiza una captura de pantalla usando callbacks.
      */
