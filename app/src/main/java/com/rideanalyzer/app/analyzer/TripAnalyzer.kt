@@ -13,6 +13,7 @@ import java.util.regex.Pattern
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TripAnalyzer(context: Context) {
 
@@ -30,6 +31,17 @@ class TripAnalyzer(context: Context) {
     fun enableShowAllTextForTesting(enabled: Boolean) {
         showAllTextForTesting = enabled
         Log.d(TAG, "Show all text for testing: $enabled")
+    }
+
+    // Method to check if we have overlay permission
+    private fun hasOverlayPermission(): Boolean {
+        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true // Overlay permission not needed before Android M
+        }
+        Log.d(TAG, "Overlay permission check: $hasPermission")
+        return hasPermission
     }
 
     /**
@@ -63,62 +75,67 @@ class TripAnalyzer(context: Context) {
         val image = InputImage.fromBitmap(screenshot, 0)
         
         // Process text recognition in a coroutine
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                val recognizedText = textRecognizer.recognizeText(image)
-                Log.d(TAG, "Text recognition successful")
-                Log.d(TAG, "Recognized text length: ${recognizedText.length}")
+        CoroutineScope(Dispatchers.Main).launch {
+            // Perform heavy operations on IO thread
+            val recognizedText = withContext(Dispatchers.IO) {
+                textRecognizer.recognizeText(image)
+            }
+            
+            Log.d(TAG, "Text recognition successful")
+            Log.d(TAG, "Recognized text length: ${recognizedText.length}")
+            
+            // Log first 1000 characters of recognized text for debugging
+            val logText = if (recognizedText.length > 1000) recognizedText.substring(0, 1000) + "..." else recognizedText
+            Log.d(TAG, "Recognized text: $logText")
+            
+            // If we're in testing mode, show all detected text in the overlay
+            if (showAllTextForTesting) {
+                Log.d(TAG, "Showing all detected text in overlay for testing")
+                if (hasOverlayPermission()) {
+                    tripOverlay.showAllDetectedText(recognizedText)
+                } else {
+                    Log.w(TAG, "Cannot show overlay - no permission")
+                }
+            }
+            
+            if (recognizedText.isBlank()) {
+                Log.d(TAG, "No text recognized in screenshot")
+                // Log some image statistics for debugging
+                logImageStats(screenshot)
+                if (!screenshot.isRecycled) {
+                    screenshot.recycle()
+                }
+                callback(null)
+                return@launch
+            }
+            
+            try {
+                // Process recognized text on IO thread
+                val tripInfo = withContext(Dispatchers.IO) {
+                    processRecognizedText(recognizedText)
+                }
                 
-                // Log first 1000 characters of recognized text for debugging
-                val logText = if (recognizedText.length > 1000) recognizedText.substring(0, 1000) + "..." else recognizedText
-                Log.d(TAG, "Recognized text: $logText")
-                
-                // If we're in testing mode, show all detected text in the overlay
-                if (showAllTextForTesting) {
-                    Log.d(TAG, "Showing all detected text in overlay for testing")
+                if (tripInfo.isValid()) {
+                    tripInfo.isProfitable = calculateProfitability(tripInfo)
+                    Log.d(TAG, "=== SHOWING TRIP OVERLAY ===")
+                    Log.d(TAG, "Final trip info: $tripInfo")
                     if (hasOverlayPermission()) {
-                        tripOverlay.showAllDetectedText(recognizedText)
+                        tripOverlay.showTripAnalysis(tripInfo)
                     } else {
                         Log.w(TAG, "Cannot show overlay - no permission")
                     }
-                }
-                
-                if (recognizedText.isBlank()) {
-                    Log.d(TAG, "No text recognized in screenshot")
-                    // Log some image statistics for debugging
-                    logImageStats(screenshot)
-                    if (!screenshot.isRecycled) {
-                        screenshot.recycle()
-                    }
+                    callback(tripInfo)
+                } else {
+                    Log.d(TAG, "Trip info is null or invalid, not showing overlay")
+                    Log.d(TAG, "Trip info validity check - Platform: ${tripInfo.platform}, Price: ${tripInfo.price}, Distance: ${tripInfo.distance}")
                     callback(null)
-                    return@launch
                 }
-                
-                try {
-                    val tripInfo = processRecognizedText(recognizedText)
-                    
-                    if (tripInfo.isValid()) {
-                        tripInfo.isProfitable = calculateProfitability(tripInfo)
-                        Log.d(TAG, "=== SHOWING TRIP OVERLAY ===")
-                        Log.d(TAG, "Final trip info: $tripInfo")
-                        if (hasOverlayPermission()) {
-                            tripOverlay.showTripAnalysis(tripInfo)
-                        } else {
-                            Log.w(TAG, "Cannot show overlay - no permission")
-                        }
-                        callback(tripInfo)
-                    } else {
-                        Log.d(TAG, "Trip info is null or invalid, not showing overlay")
-                        Log.d(TAG, "Trip info validity check - Platform: ${tripInfo.platform}, Price: ${tripInfo.price}, Distance: ${tripInfo.distance}")
-                        callback(null)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error processing recognized text", e)
-                    callback(null)
-                } finally {
-                    if (!screenshot.isRecycled) {
-                        screenshot.recycle()
-                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing recognized text", e)
+                callback(null)
+            } finally {
+                if (!screenshot.isRecycled) {
+                    screenshot.recycle()
                 }
             }
         }

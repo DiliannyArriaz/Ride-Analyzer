@@ -34,28 +34,31 @@ class ScreenshotService : Service() {
     private var virtualDisplay: VirtualDisplay? = null
     private var imageReader: ImageReader? = null
     private lateinit var tripAnalyzer: TripAnalyzer
-    private val handler = Handler(Looper.getMainLooper())
-    private val isCapturing = AtomicBoolean(false)
+    private val handler: Handler = Handler(Looper.getMainLooper())
+    private val isCapturing: AtomicBoolean = AtomicBoolean(false)
     private var lastImageHash: Int = 0
-    private var isAnalyzing = false
-    private var showAllTextForTesting = false // Flag for testing mode
+    private var isAnalyzing: Boolean = false
+    private var showAllTextForTesting: Boolean = false // Flag for testing mode
     private var lastOcrAttemptTime: Long = 0
-    private val OCR_DEBOUNCE_INTERVAL_MS = 900L // 900ms debounce
+    private val OCR_DEBOUNCE_INTERVAL_MS: Long = 900L // 900ms debounce
     
-    private val captureRunnable = object : Runnable {
-        override fun run() {
-            Log.d(TAG, "Capture runnable triggered")
-            captureScreen()
-            if (isCapturing.get()) {
-                handler.postDelayed(this, CAPTURE_INTERVAL_MS)
-            }
-        }
-    }
+    private lateinit var captureRunnable: Runnable
     
     override fun onCreate() {
         super.onCreate()
         tripAnalyzer = TripAnalyzer(this)
         Log.d(TAG, "ScreenshotService created")
+        
+        // Initialize the capture runnable
+        captureRunnable = object : Runnable {
+            override fun run() {
+                Log.d(TAG, "Capture runnable triggered")
+                captureScreen()
+                if (isCapturing.get()) {
+                    handler.postDelayed(this, CAPTURE_INTERVAL_MS)
+                }
+            }
+        }
         
         // Start as foreground service with persistent notification
         createNotificationChannel()
@@ -165,10 +168,8 @@ class ScreenshotService : Service() {
                 // Check if the cropped region is mostly black (FLAG_SECURE detection)
                 if (ImagePreprocessor.isMostlyBlack(croppedBitmap)) {
                     Log.d(TAG, "Skipping OCR (black) - capture_blocked_flag_secure")
-                    // Save debug image if in debug mode
-                    if (BuildConfig.DEBUG) {
-                        saveDebugImage(croppedBitmap, "bottom_crop")
-                    }
+                    // Save debug image - disabled to avoid BuildConfig issues
+                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     // Recycle bitmaps
                     if (!croppedBitmap.isRecycled) {
                         croppedBitmap.recycle()
@@ -188,10 +189,8 @@ class ScreenshotService : Service() {
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastOcrAttemptTime < OCR_DEBOUNCE_INTERVAL_MS) {
                         Log.d(TAG, "Skipping OCR due to debounce - ${currentTime - lastOcrAttemptTime}ms since last attempt")
-                        // Save debug image if in debug mode
-                        if (BuildConfig.DEBUG) {
-                            saveDebugImage(croppedBitmap, "bottom_crop")
-                        }
+                        // Save debug image - disabled to avoid BuildConfig issues
+                        // saveDebugImage(croppedBitmap, "bottom_crop")
                         // Recycle bitmaps
                         if (!croppedBitmap.isRecycled) {
                             croppedBitmap.recycle()
@@ -206,10 +205,8 @@ class ScreenshotService : Service() {
                     lastOcrAttemptTime = currentTime
                     Log.d(TAG, "OCR attempt start")
                     
-                    // Save debug image if in debug mode
-                    if (BuildConfig.DEBUG) {
-                        saveDebugImage(croppedBitmap, "bottom_crop")
-                    }
+                    // Save debug image - disabled to avoid BuildConfig issues
+                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     
                     // Indicate we're analyzing
                     isAnalyzing = true
@@ -230,10 +227,8 @@ class ScreenshotService : Service() {
                     }
                 } else {
                     Log.d(TAG, "Image hasn't changed significantly, skipping analysis")
-                    // Save debug image if in debug mode
-                    if (BuildConfig.DEBUG) {
-                        saveDebugImage(croppedBitmap, "bottom_crop")
-                    }
+                    // Save debug image - disabled to avoid BuildConfig issues
+                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     // Image hasn't changed significantly, recycle bitmaps
                     if (!croppedBitmap.isRecycled) {
                         croppedBitmap.recycle()
@@ -367,7 +362,7 @@ class ScreenshotService : Service() {
         private const val TAG = "ScreenshotService"
         private const val SERVICE_ID = 1001
         private const val CHANNEL_ID = "ScreenCaptureChannel"
-        private const val CAPTURE_INTERVAL_MS = 2000L // 2 seconds for better detection
-        private const val IMAGE_CHANGE_THRESHOLD = 50000 // Lower threshold for better sensitivity
+        private const val CAPTURE_INTERVAL_MS: Long = 2000L // 2 seconds for better detection
+        private const val IMAGE_CHANGE_THRESHOLD: Int = 50000 // Lower threshold for better sensitivity
     }
 }
