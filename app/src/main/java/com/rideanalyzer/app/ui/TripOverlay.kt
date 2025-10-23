@@ -114,7 +114,7 @@ class TripOverlay(private val context: Context) {
         }
         overlayView?.addView(titleView)
 
-        // Trip details (matching original format)
+        // Trip details with improved format
         val detailsText = buildString {
             append("Precio: ${tripInfo.currency}${String.format("%.0f", tripInfo.price)}\n")
             append("Distancia: ${String.format("%.1f", tripInfo.distance)} ${tripInfo.distanceUnit}\n")
@@ -124,11 +124,11 @@ class TripOverlay(private val context: Context) {
             tripInfo.rating?.let { rating ->
                 append("Rating: ${String.format("%.1f", rating)}\n")
             }
-            if (tripInfo.pricePerKm > 0) {
-                append("Precio/km: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerKm)}\n")
+            if (tripInfo.price > 0 && tripInfo.distance > 0) {
+                append("Precio/km: ${tripInfo.currency}${String.format("%.2f", tripInfo.price / tripInfo.distance)}\n")
             }
-            if (tripInfo.pricePerMinute > 0) {
-                append("Precio/min: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerMinute)}")
+            if (tripInfo.price > 0 && tripInfo.estimatedMinutes > 0) {
+                append("Precio/min: ${tripInfo.currency}${String.format("%.2f", tripInfo.price / tripInfo.estimatedMinutes)}")
             }
         }
 
@@ -170,7 +170,7 @@ class TripOverlay(private val context: Context) {
         titleView?.text = "${tripInfo.platform} - $profitabilityText"
         titleView?.setTextColor(titleColor)
 
-        // Trip details (matching original format)
+        // Trip details with improved format
         val detailsText = buildString {
             append("Precio: ${tripInfo.currency}${String.format("%.0f", tripInfo.price)}\n")
             append("Distancia: ${String.format("%.1f", tripInfo.distance)} ${tripInfo.distanceUnit}\n")
@@ -180,11 +180,11 @@ class TripOverlay(private val context: Context) {
             tripInfo.rating?.let { rating ->
                 append("Rating: ${String.format("%.1f", rating)}\n")
             }
-            if (tripInfo.pricePerKm > 0) {
-                append("Precio/km: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerKm)}\n")
+            if (tripInfo.price > 0 && tripInfo.distance > 0) {
+                append("Precio/km: ${tripInfo.currency}${String.format("%.2f", tripInfo.price / tripInfo.distance)}\n")
             }
-            if (tripInfo.pricePerMinute > 0) {
-                append("Precio/min: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerMinute)}")
+            if (tripInfo.price > 0 && tripInfo.estimatedMinutes > 0) {
+                append("Precio/min: ${tripInfo.currency}${String.format("%.2f", tripInfo.price / tripInfo.estimatedMinutes)}")
             }
         }
 

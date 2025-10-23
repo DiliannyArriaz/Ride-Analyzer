@@ -67,7 +67,7 @@ class RideAccessibilityService : AccessibilityService() {
             "com.didi.sd.passenger",
             "com.didi.sdk.passenger",
             "com.didi.driver",
-            "com.didi.global.driver"
+            "com.didiglobal.driver"
         )
         
         // Also include test app
