@@ -58,8 +58,11 @@ class RideAppTextExtractor {
         // Extract price with Uber-specific patterns
         extractPrice(text, tripInfo)
         
-        // Extract distance and time for both pickup and trip
-        extractDistanceAndTime(text, tripInfo)
+        // Extract distance with Uber-specific patterns (sum pickup and trip distances)
+        extractTotalDistance(text, tripInfo)
+        
+        // Extract time with Uber-specific patterns (sum pickup and trip times)
+        extractTotalTime(text, tripInfo)
         
         // Extract rating if available
         extractRating(text, tripInfo)
@@ -75,8 +78,11 @@ class RideAppTextExtractor {
         // Extract price with DiDi-specific patterns
         extractPrice(text, tripInfo)
         
-        // Extract distance and time for both pickup and trip
-        extractDistanceAndTime(text, tripInfo)
+        // Extract distance with DiDi-specific patterns (sum pickup and trip distances)
+        extractTotalDistance(text, tripInfo)
+        
+        // Extract time with DiDi-specific patterns (sum pickup and trip times)
+        extractTotalTime(text, tripInfo)
         
         // Extract rating if available
         extractRating(text, tripInfo)
@@ -90,7 +96,8 @@ class RideAppTextExtractor {
         
         // Use generic patterns for all ride apps
         extractPrice(text, tripInfo)
-        extractDistanceAndTime(text, tripInfo)
+        extractTotalDistance(text, tripInfo)
+        extractTotalTime(text, tripInfo)
         extractRating(text, tripInfo)
     }
     
@@ -111,8 +118,8 @@ class RideAppTextExtractor {
         
         for (pattern in pricePatterns) {
             val matches = pattern.findAll(text)
-            matches.forEach { matchResult ->
-                val groups = matchResult.groupValues
+            matches.forEach { match ->
+                val groups = match.groupValues
                 val currency = if (groups[1].isCurrencySymbol()) groups[1] else groups[2]
                 val amount = if (groups[1].isCurrencySymbol()) groups[2] else groups[1]
                 
@@ -121,7 +128,7 @@ class RideAppTextExtractor {
                     maxPrice = priceValue
                     tripInfo.currency = currency
                     foundPrice = true
-                    Log.d(TAG, "Found price: $priceValue $currency from '$matchResult'")
+                    Log.d(TAG, "Found price: $priceValue $currency from '$match'")
                 }
             }
         }
@@ -135,90 +142,105 @@ class RideAppTextExtractor {
     }
     
     /**
-     * Extract distance and time information, summing pickup and trip values.
+     * Extract and sum both pickup and trip distances.
+     * Looks for patterns like "A 6 min (2.0 km)" and "Viaje: 20 min (8.7 km)"
      */
-    private fun extractDistanceAndTime(text: String, tripInfo: TripInfo) {
-        Log.d(TAG, "Extracting distance and time information")
+    private fun extractTotalDistance(text: String, tripInfo: TripInfo) {
+        Log.d(TAG, "Extracting total distance information")
         
         var totalDistance = 0.0
-        var totalMinutes = 0
         
-        // Look for "A X min (Y km)" for pickup
-        val pickupPattern = Regex("A (\\d+)\\s*min.*\\((\\d+[,.]\\d+)\\s*km\\)", RegexOption.IGNORE_CASE)
+        // Look for pickup distance pattern: "A X min (Y km)"
+        val pickupPattern = Regex("A\\s+\\d+\\s*min.*?\\((\\d+(?:[.,]\\d+)?)\\s*(km|mi)\\)", RegexOption.IGNORE_CASE)
         val pickupMatches = pickupPattern.findAll(text)
-        var pickupCount = 0
-        pickupMatches.forEach { matchResult ->
-            pickupCount++
-            val minutes = matchResult.groupValues[1].toIntOrNull() ?: 0
-            val distance = matchResult.groupValues[2].replace(',', '.').toDoubleOrNull() ?: 0.0
-            totalMinutes += minutes
-            totalDistance += distance
-            Log.d(TAG, "Pickup match #$pickupCount: ${minutes}min, ${distance}km (${matchResult.value})")
+        pickupMatches.forEach { match ->
+            val distanceValue = match.groupValues[1].replace(",", ".").toDoubleOrNull()
+            if (distanceValue != null) {
+                totalDistance += distanceValue
+                Log.d(TAG, "Found pickup distance: $distanceValue ${match.groupValues[2]}")
+            }
         }
         
-        if (pickupCount > 0) {
-            Log.d(TAG, "Found $pickupCount pickup matches, total: ${totalMinutes}min, ${totalDistance}km")
-        }
-        
-        // Look for "Viaje: X min (Y km)" for the main trip
-        val tripPattern = Regex("Viaje:\\s*(\\d+)\\s*min.*\\((\\d+[,.]\\d+)\\s*km\\)", RegexOption.IGNORE_CASE)
+        // Look for trip distance pattern: "Viaje: X min (Y km)"
+        val tripPattern = Regex("Viaje:\\s*\\d+\\s*min.*?\\((\\d+(?:[.,]\\d+)?)\\s*(km|mi)\\)", RegexOption.IGNORE_CASE)
         val tripMatches = tripPattern.findAll(text)
-        var tripCount = 0
-        tripMatches.forEach { matchResult ->
-            tripCount++
-            val minutes = matchResult.groupValues[1].toIntOrNull() ?: 0
-            val distance = matchResult.groupValues[2].replace(',', '.').toDoubleOrNull() ?: 0.0
-            totalMinutes += minutes
-            totalDistance += distance
-            Log.d(TAG, "Trip match #$tripCount: ${minutes}min, ${distance}km (${matchResult.value})")
+        tripMatches.forEach { match ->
+            val distanceValue = match.groupValues[1].replace(",", ".").toDoubleOrNull()
+            if (distanceValue != null) {
+                totalDistance += distanceValue
+                Log.d(TAG, "Found trip distance: $distanceValue ${match.groupValues[2]}")
+            }
         }
         
-        if (tripCount > 0) {
-            Log.d(TAG, "Found $tripCount trip matches, total: ${totalMinutes}min, ${totalDistance}km")
-        }
-        
-        // If we didn't find the specific pickup/trip patterns, try generic patterns
-        if (totalDistance == 0.0 && totalMinutes == 0) {
-            Log.d(TAG, "No specific pickup/trip patterns found, trying generic patterns")
-            
-            // Extract distance with generic patterns
-            val distancePattern = Regex("(\\d+(?:[.,]\\d+)?)\\s*(km|mi)", RegexOption.IGNORE_CASE)
-            val distanceMatcher = distancePattern.find(text)
-            distanceMatcher?.let { matchResult ->
-                val distanceValue = matchResult.groupValues[1].replace(",", ".").toDoubleOrNull()
+        // If we didn't find the specific patterns, fall back to generic distance extraction
+        if (totalDistance == 0.0) {
+            Log.d(TAG, "No specific pickup/trip distances found, using generic distance extraction")
+            val genericDistanceMatcher = Regex("(\\d+(?:[.,]\\d+)?)\\s*(km|mi)", RegexOption.IGNORE_CASE).find(text)
+            genericDistanceMatcher?.let {
+                val distanceValue = it.groupValues[1].replace(",", ".").toDoubleOrNull()
                 if (distanceValue != null && distanceValue > 0) {
                     totalDistance = distanceValue
-                    tripInfo.distanceUnit = matchResult.groupValues[2].lowercase()
-                    Log.d(TAG, "Extracted generic distance: ${totalDistance} ${tripInfo.distanceUnit}")
-                }
-            }
-            
-            // Extract time with generic patterns
-            val timePatterns = listOf(
-                Regex("(\\d+)\\s*(min|minutes)", RegexOption.IGNORE_CASE),
-                Regex("(\\d+)\\s*(min|m)", RegexOption.IGNORE_CASE)
-            )
-            
-            var timeFound = false
-            for (pattern in timePatterns) {
-                if (timeFound) break
-                val matchResult = pattern.find(text)
-                matchResult?.let {
-                    val timeValue = it.groupValues[1].toIntOrNull()
-                    if (timeValue != null && timeValue > 0) {
-                        totalMinutes = timeValue
-                        Log.d(TAG, "Extracted generic time: ${totalMinutes} min")
-                        timeFound = true
-                    }
+                    Log.d(TAG, "Found generic distance: $distanceValue ${it.groupValues[2]}")
                 }
             }
         }
         
-        tripInfo.distance = totalDistance
-        tripInfo.estimatedMinutes = totalMinutes
-        tripInfo.distanceUnit = "km" // Default to km
+        if (totalDistance > 0) {
+            tripInfo.distance = totalDistance
+            // Always set to km for consistency
+            tripInfo.distanceUnit = "km"
+            Log.d(TAG, "Final total distance: ${tripInfo.distance} ${tripInfo.distanceUnit}")
+        }
+    }
+    
+    /**
+     * Extract and sum both pickup and trip times.
+     * Looks for patterns like "A 6 min (2.0 km)" and "Viaje: 20 min (8.7 km)"
+     */
+    private fun extractTotalTime(text: String, tripInfo: TripInfo) {
+        Log.d(TAG, "Extracting total time information")
         
-        Log.d(TAG, "Final extracted data - Distance: ${tripInfo.distance} km, Time: ${tripInfo.estimatedMinutes} min")
+        var totalTime = 0
+        
+        // Look for pickup time pattern: "A X min (Y km)"
+        val pickupPattern = Regex("A\\s+(\\d+)\\s*min", RegexOption.IGNORE_CASE)
+        val pickupMatches = pickupPattern.findAll(text)
+        pickupMatches.forEach { match ->
+            val timeValue = match.groupValues[1].toIntOrNull()
+            if (timeValue != null) {
+                totalTime += timeValue
+                Log.d(TAG, "Found pickup time: $timeValue min")
+            }
+        }
+        
+        // Look for trip time pattern: "Viaje: X min (Y km)"
+        val tripPattern = Regex("Viaje:\\s*(\\d+)\\s*min", RegexOption.IGNORE_CASE)
+        val tripMatches = tripPattern.findAll(text)
+        tripMatches.forEach { match ->
+            val timeValue = match.groupValues[1].toIntOrNull()
+            if (timeValue != null) {
+                totalTime += timeValue
+                Log.d(TAG, "Found trip time: $timeValue min")
+            }
+        }
+        
+        // If we didn't find the specific patterns, fall back to generic time extraction
+        if (totalTime == 0) {
+            Log.d(TAG, "No specific pickup/trip times found, using generic time extraction")
+            val genericTimeMatcher = Regex("(\\d+)\\s*(min|minutes)", RegexOption.IGNORE_CASE).find(text)
+            genericTimeMatcher?.let {
+                val timeValue = it.groupValues[1].toIntOrNull()
+                if (timeValue != null && timeValue > 0) {
+                    totalTime = timeValue
+                    Log.d(TAG, "Found generic time: $timeValue min")
+                }
+            }
+        }
+        
+        if (totalTime > 0) {
+            tripInfo.estimatedMinutes = totalTime
+            Log.d(TAG, "Final total time: ${tripInfo.estimatedMinutes} min")
+        }
     }
     
     /**
@@ -228,8 +250,8 @@ class RideAppTextExtractor {
         Log.d(TAG, "Extracting rating information")
         
         val ratingMatcher = Regex("([\\d.,]+)\\s*\\(\\d+\\s*(ratings?|reviews?)\\)", RegexOption.IGNORE_CASE).find(text)
-        ratingMatcher?.let { matchResult ->
-            val ratingValue = matchResult.groupValues[1].replace(',', '.').toDoubleOrNull()
+        ratingMatcher?.let {
+            val ratingValue = it.groupValues[1].replace(',', '.').toDoubleOrNull()
             if (ratingValue != null) {
                 tripInfo.rating = ratingValue
                 Log.d(TAG, "Extracted rating: ${tripInfo.rating}")

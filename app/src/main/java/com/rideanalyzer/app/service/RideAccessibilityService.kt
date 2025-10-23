@@ -60,16 +60,14 @@ class RideAccessibilityService : AccessibilityService() {
         val uberPackages = listOf(
             "com.ubercab",
             "com.ubercab.driver",
-            "com.ubercab.eats",
-            "com.ubercab.freight"
         )
         
         val didiPackages = listOf(
-            "com.didi.global.passenger",
+            "com.didiglobal.driver",
             "com.didi.sd.passenger",
             "com.didi.sdk.passenger",
             "com.didi.driver",
-            "com.didi.global.driver"
+            "com.didiglobal.driver"
         )
         
         // Also include test app
