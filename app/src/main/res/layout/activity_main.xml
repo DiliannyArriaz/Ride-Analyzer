@@ -8,53 +8,55 @@
 
 
     <!-- Header: chip + RIDE ANALYZER text (simple, seguro para build) -->
+
     <LinearLayout
         android:id="@+id/headerContainer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
         android:gravity="center_vertical"
-        app:layout_constraintStart_toStartOf="parent"
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:id="@+id/headerChip"
             android:layout_width="96dp"
             android:layout_height="96dp"
-            android:src="@drawable/ic_app_chip"
-            android:contentDescription="Chip logo" />
+            android:contentDescription="Chip logo"
+            android:src="@drawable/ic_app_chip" />
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_width="251dp"
+            android:layout_height="84dp"
             android:layout_marginStart="12dp"
-            android:orientation="vertical"
-            android:layout_weight="1">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
             <TextView
                 android:id="@+id/headerRide"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
                 android:text="RIDE"
                 android:textColor="@color/neon_cyan"
                 android:textSize="28sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08" />
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/headerAnalyzer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.08"
                 android:text="ANALYZER"
                 android:textColor="@color/neon_purple"
                 android:textSize="28sp"
-                android:textStyle="bold"
-                android:fontFamily="monospace"
-                android:letterSpacing="0.08"
-                android:layout_marginTop="2dp" />
+                android:textStyle="bold" />
 
             <View
                 android:layout_width="140dp"
@@ -184,11 +186,14 @@
     </androidx.cardview.widget.CardView>
 
     <!-- Estado del sistema -->
+
+    <!-- Green dot indicator -->
+
     <TextView
         android:id="@+id/systemStatusText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="4dp"
         android:background="@drawable/status_background"
         android:paddingHorizontal="24dp"
         android:paddingVertical="12dp"
@@ -196,10 +201,10 @@
         android:textColor="@color/text_secondary"
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/mainCard" />
 
-    <!-- Green dot indicator -->
     <View
         android:id="@+id/statusIndicator"
         android:layout_width="12dp"
@@ -215,7 +220,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="4dp"
         android:text="UBER • DIDI (SOON)"
         android:textColor="@color/text_secondary"
         android:textSize="12sp"

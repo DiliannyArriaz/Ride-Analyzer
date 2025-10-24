@@ -232,11 +232,12 @@ class ScreenshotService : Service() {
                             Log.d(TAG, "Trip info detected: $tripInfo")
                             updateNotification("Ride Analyzer - Trip Detected", "Analyzing ride offers... Tap to open app", true)
                         } else {
-                            Log.d(TAG, "No trip info detected in screenshot, hiding overlay")
+                            Log.d(TAG, "No trip info detected in screenshot")
                             tripAnalyzer.hideOverlay() // Hide the overlay when no trip is detected
                             updateNotification("Ride Analyzer", "Actively analyzing screen for ride offers...", true)
                         }
                     }
+
                 } else {
                     Log.d(TAG, "Image hasn't changed significantly, skipping analysis")
                     // Image hasn't changed significantly, recycle bitmaps
@@ -308,7 +309,48 @@ class ScreenshotService : Service() {
         }
     }
     
-    private fun saveDebugImage(bitmap: Bitmap, prefix: String) {
+    private fun processImage(bitmap: Bitmap) {
+        Log.d(TAG, "=== PROCESSING IMAGE ===")
+        Log.d(TAG, "Original bitmap size: ${bitmap.width}x${bitmap.height}")
+        
+        // Check if the screen is secure/blocked
+        if (isMostlyBlack(bitmap)) {
+            Log.d(TAG, "Screen appears to be secure/blocked, skipping OCR processing")
+            isAnalyzing = false
+            return
+        }
+
+        // Crop to bottom half of screen for efficiency and privacy
+        val croppedBitmap = cropBottomHalf(bitmap)
+        Log.d(TAG, "Cropped bitmap size: ${croppedBitmap.width}x${croppedBitmap.height}")
+        
+        // Save debug image for inspection
+        saveDebugImage(croppedBitmap)
+        
+        // Check if the cropped image is empty
+        if (isBitmapEmpty(croppedBitmap)) {
+            Log.d(TAG, "Cropped image appears to be empty, skipping OCR processing")
+            isAnalyzing = false
+            return
+        }
+
+        Log.d(TAG, "Sending cropped screenshot to analyzer, bitmap size: ${croppedBitmap.width}x${croppedBitmap.height}")
+        
+        // Analyze the captured screen (using cropped bitmap)
+        tripAnalyzer.analyzeScreenshot(croppedBitmap) { tripInfo ->
+            isAnalyzing = false
+            if (tripInfo != null) {
+                Log.d(TAG, "Trip info detected: $tripInfo")
+                updateNotification("Ride Analyzer - Trip Detected", "Analyzing ride offers... Tap to open app", true)
+            } else {
+                Log.d(TAG, "No trip info detected in screenshot")
+                tripAnalyzer.hideOverlay() // Hide the overlay when no trip is detected
+                updateNotification("Ride Analyzer", "Actively analyzing screen for ride offers...", true)
+            }
+        }
+    }
+
+    private fun saveDebugImage(bitmap: Bitmap, prefix: String = "debug") {
         try {
             val debugDir = File(getExternalFilesDir(null), "debug_ocr")
             if (!debugDir.exists()) {
@@ -326,6 +368,73 @@ class ScreenshotService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error saving debug image", e)
         }
+    }
+    
+    private fun isMostlyBlack(bitmap: Bitmap): Boolean {
+        // Check if a significant portion of the bitmap is black
+        val width = bitmap.width
+        val height = bitmap.height
+        val totalPixels = width * height
+        var blackPixels = 0
+        
+        // Check every 5th pixel
+        for (x in 0 until width step 5) {
+            for (y in 0 until height step 5) {
+                val pixel = bitmap.getPixel(x, y)
+                val red = android.graphics.Color.red(pixel)
+                val green = android.graphics.Color.green(pixel)
+                val blue = android.graphics.Color.blue(pixel)
+                
+                if (red < 20 && green < 20 && blue < 20) {
+                    blackPixels++
+                }
+            }
+        }
+        
+        // Calculate the percentage of black pixels
+        val blackPixelPercentage = (blackPixels.toDouble() / totalPixels) * 100
+        return blackPixelPercentage > 90.0 // 90% threshold for black screen
+    }
+
+    private fun isBitmapEmpty(bitmap: Bitmap): Boolean {
+        // Check if bitmap is mostly black/empty
+        var totalPixels = 0
+        var blackPixels = 0
+        
+        // Sample pixels (checking every 5th pixel for better accuracy)
+        for (x in 0 until bitmap.width step 5) {
+            for (y in 0 until bitmap.height step 5) {
+                totalPixels++
+                val pixel = bitmap.getPixel(x, y)
+                val red = android.graphics.Color.red(pixel)
+                val green = android.graphics.Color.green(pixel)
+                val blue = android.graphics.Color.blue(pixel)
+                
+                // If pixel is close to black (all RGB values < 20)
+                if (red < 20 && green < 20 && blue < 20) {
+                    blackPixels++
+                }
+            }
+        }
+        
+        // If more than 95% of sampled pixels are black, consider it empty
+        // Increased threshold to better detect when screen content is minimal
+        val isEmpty = totalPixels > 0 && (blackPixels.toDouble() / totalPixels) > 0.95
+        Log.d(TAG, "Bitmap empty check - Total pixels sampled: $totalPixels, Black pixels: $blackPixels, Is empty: $isEmpty")
+        return isEmpty
+    }
+
+    private fun cropBottomHalf(bitmap: Bitmap): Bitmap {
+        val height = bitmap.height
+        val cropHeight = (height * 0.5).toInt() // Crop bottom half
+        val croppedBitmap = Bitmap.createBitmap(
+            bitmap,
+            0,
+            height - cropHeight,
+            bitmap.width,
+            cropHeight
+        )
+        return croppedBitmap
     }
     
     override fun onDestroy() {

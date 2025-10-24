@@ -592,6 +592,7 @@ class TripAnalyzer(context: Context) {
         // Update the tripInfo with calculated values
         tripInfo.pricePerKm = pricePerKm
         tripInfo.pricePerMinute = pricePerMinute
+        tripInfo.pricePerHour = pricePerMinute * 60
 
         // Use the configurable desired hourly rate for profitability calculation
         val minPricePerMinute = desiredHourlyRate / 60.0
@@ -629,7 +630,7 @@ class TripAnalyzer(context: Context) {
     }
 
     fun hideOverlay() {
-        tripOverlay.hide()
+        tripOverlay.onTripNoLongerVisible()
     }
 
     companion object {
