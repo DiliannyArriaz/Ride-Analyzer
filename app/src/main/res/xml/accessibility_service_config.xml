@@ -1,3 +1,6 @@
+    android:notificationTimeout="100"
+    android:packageNames="com.ubercab.driver, com.didiglobal.driver" />
+>>>>>>> 2c9b60e76c481f1d82a2c92b8da92817805d7006
 <?xml version="1.0" encoding="utf-8"?>
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowContentChanged|typeViewTextChanged"
@@ -5,5 +8,9 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:canRetrieveWindowContent="true"
     android:description="@string/accessibility_service_description"
-    android:notificationTimeout="75"
-    android:packageNames="com.ubercab.driver,com.didiglobal.driver" />
+    android:notificationTimeout="100"
+    android:packageNames="com.ubercab.driver, com.didiglobal.driver" />
+=======
+    android:notificationTimeout="100"
+    android:packageNames="com.ubercab.driver, com.didiglobal.driver" />
+>>>>>>> 2c9b60e76c481f1d82a2c92b8da92817805d7006

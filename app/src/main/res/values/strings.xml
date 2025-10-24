@@ -12,7 +12,7 @@
     <string name="cost_per_km">Cost Per Km (ARS)</string>
     <string name="min_rating">Minimum Rating</string>
     <string name="save">Save</string>
-    <string name="accessibility_service_description">Accessibility service to analyze ride information from Uber and DiDi apps</string>
+    <string name="accessibility_service_description">Accessibility service that ONLY reads trip information from Uber and DiDi driver apps to help you determine ride profitability. This service is specifically designed to work with these ride-sharing platforms and does not collect or transmit any personal data. All processing happens locally on your device.</string>
     <string name="start_accessibility_service">Start Accessibility Service</string>
     <string name="stop_accessibility_service">Stop Accessibility Service</string>
     <string name="activate_accessibility">Activar Accesibilidad</string>
