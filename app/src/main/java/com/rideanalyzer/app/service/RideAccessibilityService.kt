@@ -84,26 +84,11 @@ class RideAccessibilityService : AccessibilityService() {
             "com.ubercab.driver",
         )
         
-                    "com.didiglobal.driver",
-            "com.didi.sd.passenger",
-            "com.didi.sdk.passenger",
-            "com.didi.driver",
->>>>>>> 2c9b60e76c481f1d82a2c92b8da92817805d7006
-            "com.didiglobal.driver"
-        )
-val didiPackages = listOf(
+        val didiPackages = listOf(
             "com.didiglobal.driver",
             "com.didi.sd.passenger",
             "com.didi.sdk.passenger",
             "com.didi.driver"
-        )
-=======
-            "com.didiglobal.driver",
-            "com.didi.sd.passenger",
-            "com.didi.sdk.passenger",
-            "com.didi.driver",
->>>>>>> 2c9b60e76c481f1d82a2c92b8da92817805d7006
-            "com.didiglobal.driver"
         )
         
         // Also include test app

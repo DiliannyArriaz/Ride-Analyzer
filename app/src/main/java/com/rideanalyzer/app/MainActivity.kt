@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
@@ -35,11 +36,17 @@ class MainActivity : Activity() {
     private lateinit var grantPermissionsButton: MaterialButton
     private lateinit var startAccessibilityButton: MaterialButton
     private lateinit var desiredHourlyRateInput: TextInputEditText
+    private lateinit var saveHourlyRateButton: MaterialButton
     private lateinit var startRecordingButton: MaterialButton
     private lateinit var systemStatusText: TextView
     private lateinit var statusIndicator: View
+    private lateinit var sharedPreferences: SharedPreferences
     private var isAccessibilityServiceRunning = false
     private var isRecordingServiceRunning = false
+    
+    // SharedPreferences key for saving the desired hourly rate
+    private val PREFS_NAME = "RideAnalyzerPrefs"
+    private val KEY_DESIRED_HOURLY_RATE = "desired_hourly_rate"
     
     // 1. Definimos la lista de permisos en un solo lugar para evitar inconsistencias.
     private val requiredPermissions by lazy {
@@ -59,18 +66,23 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
+        // Initialize SharedPreferences
+        sharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        
         mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         
         // Initialize UI elements
         grantPermissionsButton = findViewById(R.id.grantPermissionsButton)
         startAccessibilityButton = findViewById(R.id.startAccessibilityButton)
         desiredHourlyRateInput = findViewById(R.id.desiredHourlyRateInput)
+        saveHourlyRateButton = findViewById(R.id.saveHourlyRateButton)
         startRecordingButton = findViewById(R.id.startRecordingButton)
         systemStatusText = findViewById(R.id.systemStatusText)
         statusIndicator = findViewById(R.id.statusIndicator)
         
-        // Set default value for desired hourly rate
-        desiredHourlyRateInput.setText("10000")
+        // Load saved desired hourly rate or set default value
+        val savedHourlyRate = sharedPreferences.getFloat(KEY_DESIRED_HOURLY_RATE, 10000f)
+        desiredHourlyRateInput.setText(savedHourlyRate.toInt().toString())
         
         // Set up button listeners
         grantPermissionsButton.setOnClickListener {
@@ -99,6 +111,11 @@ class MainActivity : Activity() {
             }
         }
         
+        saveHourlyRateButton.setOnClickListener {
+            Log.d(TAG, "Save hourly rate button clicked")
+            saveDesiredHourlyRate()
+        }
+        
         startRecordingButton.setOnClickListener {
             Log.d(TAG, "Start recording button clicked")
             if (isRecordingServiceRunning) {
@@ -119,6 +136,9 @@ class MainActivity : Activity() {
                         10000.0 // Default value if input is invalid
                     }
                     
+                    // Save the desired hourly rate
+                    saveDesiredHourlyRate()
+                    
                     // Request screen capture permission
                     val intent = mediaProjectionManager.createScreenCaptureIntent()
                     startActivityForResult(intent, MEDIA_PROJECTION_REQUEST_CODE)
@@ -129,6 +149,28 @@ class MainActivity : Activity() {
         }
         
         updateButtonStates()
+    }
+    
+    /**
+     * Save the desired hourly rate to SharedPreferences
+     */
+    private fun saveDesiredHourlyRate() {
+        val hourlyRateText = desiredHourlyRateInput.text.toString()
+        if (hourlyRateText.isNotEmpty()) {
+            try {
+                val hourlyRate = hourlyRateText.toFloat()
+                sharedPreferences.edit()
+                    .putFloat(KEY_DESIRED_HOURLY_RATE, hourlyRate)
+                    .apply()
+                Toast.makeText(this, "Valor guardado: $hourlyRate ARS/hora", Toast.LENGTH_SHORT).show()
+                Log.d(TAG, "Saved desired hourly rate: $hourlyRate")
+            } catch (e: NumberFormatException) {
+                Toast.makeText(this, "Por favor ingrese un valor numérico válido", Toast.LENGTH_SHORT).show()
+                Log.e(TAG, "Invalid number format for hourly rate: $hourlyRateText", e)
+            }
+        } else {
+            Toast.makeText(this, "Por favor ingrese un valor", Toast.LENGTH_SHORT).show()
+        }
     }
     
     override fun onResume() {
@@ -161,6 +203,9 @@ class MainActivity : Activity() {
                 } catch (e: NumberFormatException) {
                     10000.0 // Default value if input is invalid
                 }
+                
+                // Save the desired hourly rate
+                saveDesiredHourlyRate()
                 
                 // Permiso concedido, iniciamos el servicio real
                 val serviceIntent = Intent(this, ScreenshotService::class.java).apply {

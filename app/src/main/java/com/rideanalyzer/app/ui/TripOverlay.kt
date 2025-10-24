@@ -106,8 +106,8 @@ class TripOverlay(private val context: Context) {
         // Create the main container with rounded corners and glass effect
         overlayView = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            // Set size to more generous proportions to match design (280dp width, ~380dp height)
-            layoutParams = android.view.ViewGroup.LayoutParams(dpToPx(220), dpToPx(340))
+            // Set size to match the reference design rectangle
+            layoutParams = android.view.ViewGroup.LayoutParams(dpToPx(180), dpToPx(180))
         }
 
         // Create background with gradient and border
@@ -412,8 +412,8 @@ class TripOverlay(private val context: Context) {
         }
 
     return WindowManager.LayoutParams(
-        dpToPx(220), // Thinner width to match reference
-        dpToPx(340), // Slightly reduced height for better proportion
+        dpToPx(180), // Width to match reference rectangle
+        dpToPx(180), // Square height to match reference rectangle
                 overlayType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
