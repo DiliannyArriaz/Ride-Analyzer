@@ -8,17 +8,55 @@ class ImagePreprocessor {
         private const val TAG = "ImagePreprocessor"
         
         /**
-         * Crops the bottom half of the bitmap
+         * Crops the bottom region of the bitmap starting at a percentage of the height.
+         * By default we take from 40% of the screen height to the bottom to include
+         * slightly more area above the half (helps with larger Didi notifications).
          */
-        fun cropBottomHalf(bitmap: Bitmap): Bitmap {
+        fun cropBottomHalf(bitmap: Bitmap, startPercent: Float = 0.40f): Bitmap {
             val width = bitmap.width
             val height = bitmap.height
-            val top = height / 2
-            
-            Log.d(TAG, "Cropping bitmap to bottom half - Original: ${width}x$height, Crop: ${width}x${height - top} at (0,$top)")
-            
-            // Create a new bitmap with just the bottom half
+            // Ensure percent is within (0..1)
+            val pct = when {
+                startPercent <= 0f -> 0.0f
+                startPercent >= 1f -> 0.5f
+                else -> startPercent
+            }
+            val top = (height * pct).toInt()
+
+            Log.d(TAG, "Cropping bitmap from ${pct * 100}% - Original: ${width}x$height, Crop: ${width}x${height - top} at (0,$top)")
+
+            // Create a new bitmap from the computed top to the bottom
             return Bitmap.createBitmap(bitmap, 0, top, width, height - top)
+        }
+        
+        /**
+         * Crops a middle region of the bitmap between startPercent and endPercent of the height.
+         */
+        fun cropMiddleRegion(bitmap: Bitmap, startPercent: Float, endPercent: Float): Bitmap {
+            val width = bitmap.width
+            val height = bitmap.height
+            
+            // Ensure percents are within (0..1) and start < end
+            val start = when {
+                startPercent <= 0f -> 0.0f
+                startPercent >= 1f -> 0.0f
+                else -> startPercent
+            }
+            
+            val end = when {
+                endPercent <= 0f -> 1.0f
+                endPercent >= 1f -> 1.0f
+                else -> endPercent
+            }
+            
+            val top = (height * start).toInt()
+            val bottom = (height * end).toInt()
+            val cropHeight = bottom - top
+
+            Log.d(TAG, "Cropping middle region from ${start * 100}% to ${end * 100}% - Original: ${width}x$height, Crop: ${width}x$cropHeight at (0,$top)")
+
+            // Create a new bitmap from the computed region
+            return Bitmap.createBitmap(bitmap, 0, top, width, cropHeight)
         }
         
         /**

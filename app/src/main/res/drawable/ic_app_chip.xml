@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <group android:translateX="60" android:translateY="60">
+        <!-- Chip exterior stroke -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#06B6D4"
+            android:strokeWidth="3"
+            android:pathData="M-50,-50 h100 a6,6 0 0 1 6,6 v88 a6,6 0 0 1 -6,6 h-100 a6,6 0 0 1 -6,-6 v-88 a6,6 0 0 1 6,-6 z" />
+
+        <!-- Inner rounded box -->
+        <path
+            android:fillColor="#071227"
+            android:strokeColor="#A855F7"
+            android:strokeWidth="2"
+            android:pathData="M-40,-40 h80 a4,4 0 0 1 4,4 v72 a4,4 0 0 1 -4,4 h-80 a4,4 0 0 1 -4,-4 v-72 a4,4 0 0 1 4,-4 z" />
+
+        <!-- Pines izquierdos -->
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-60,-30 h-8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-60,-12 h-8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-60,6 h-8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-60,24 h-8"/>
+
+        <!-- Pines derechos -->
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M60,-30 h8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M60,-12 h8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M60,6 h8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M60,24 h8"/>
+
+        <!-- Pines superiores -->
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-30,-60 v-8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-12,-60 v-8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M6,-60 v-8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M24,-60 v-8"/>
+
+        <!-- Pines inferiores -->
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-30,60 v8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M-12,60 v8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M6,60 v8"/>
+        <path android:strokeColor="#06B6D4" android:strokeWidth="2" android:pathData="M24,60 v8"/>
+
+        <!-- Carro dentro -->
+        <group android:translateY="-8">
+            <path android:fillColor="#06B6D4" android:pathData="M-12,0 L-16,6 L16,6 L12,0 L8,-5 L-8,-5 Z"/>
+            <path android:fillColor="#A855F7" android:pathData="M-10,8 a2.5,2.5 0 1,1 0,-0.01"/>
+            <path android:fillColor="#A855F7" android:pathData="M10,8 a2.5,2.5 0 1,1 0,-0.01"/>
+        </group>
+
+        <!-- Gráfico de análisis -->
+        <group android:translateY="12">
+            <path android:strokeColor="#A855F7" android:strokeWidth="2.5" android:pathData="M-20,12 L-8,4 L4,8 L16,0"/>
+            <path android:fillColor="#A855F7" android:pathData="M-20,12 a2,2 0 1,1 0,-0.01"/>
+            <path android:fillColor="#A855F7" android:pathData="M-8,4 a2,2 0 1,1 0,-0.01"/>
+            <path android:fillColor="#A855F7" android:pathData="M4,8 a2,2 0 1,1 0,-0.01"/>
+            <path android:fillColor="#A855F7" android:pathData="M16,0 a2,2 0 1,1 0,-0.01"/>
+        </group>
+    </group>
+</vector>

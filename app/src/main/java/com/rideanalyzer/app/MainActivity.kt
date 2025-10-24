@@ -14,11 +14,16 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.rideanalyzer.app.R
 import com.rideanalyzer.app.service.RideAccessibilityService
 import com.rideanalyzer.app.service.ScreenshotService
 import com.rideanalyzer.app.ui.TripOverlay
@@ -27,15 +32,12 @@ import com.rideanalyzer.app.util.AccessibilityServiceHelper
 class MainActivity : Activity() {
     
     private lateinit var mediaProjectionManager: MediaProjectionManager
-    private lateinit var startAccessibilityButton: Button
-    private lateinit var startRecordingButton: Button
-    private lateinit var stopAccessibilityButton: Button
-    private lateinit var stopRecordingButton: Button
-    private lateinit var startRecordingTestModeButton: Button
-    private lateinit var grantPermissionsButton: Button
-    private lateinit var reviewPermissionsButton: Button
-    private lateinit var testOverlayButton: Button
-    private lateinit var testTextOverlayButton: Button
+    private lateinit var grantPermissionsButton: MaterialButton
+    private lateinit var startAccessibilityButton: MaterialButton
+    private lateinit var desiredHourlyRateInput: TextInputEditText
+    private lateinit var startRecordingButton: MaterialButton
+    private lateinit var systemStatusText: TextView
+    private lateinit var statusIndicator: View
     private var isAccessibilityServiceRunning = false
     private var isRecordingServiceRunning = false
     
@@ -59,163 +61,74 @@ class MainActivity : Activity() {
         
         mediaProjectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         
-        // Initialize buttons
-        startAccessibilityButton = findViewById(R.id.startAccessibilityButton)
-        startRecordingButton = findViewById(R.id.startRecordingButton)
-        stopAccessibilityButton = findViewById(R.id.stopAccessibilityButton)
-        stopRecordingButton = findViewById(R.id.stopRecordingButton)
-        startRecordingTestModeButton = findViewById(R.id.startRecordingTestModeButton)
+        // Initialize UI elements
         grantPermissionsButton = findViewById(R.id.grantPermissionsButton)
-        reviewPermissionsButton = findViewById(R.id.reviewPermissionsButton)
-        testOverlayButton = findViewById(R.id.testOverlayButton)
-        testTextOverlayButton = findViewById(R.id.testTextOverlayButton)
+        startAccessibilityButton = findViewById(R.id.startAccessibilityButton)
+        desiredHourlyRateInput = findViewById(R.id.desiredHourlyRateInput)
+        startRecordingButton = findViewById(R.id.startRecordingButton)
+        systemStatusText = findViewById(R.id.systemStatusText)
+        statusIndicator = findViewById(R.id.statusIndicator)
+        
+        // Set default value for desired hourly rate
+        desiredHourlyRateInput.setText("10000")
         
         // Set up button listeners
-        startAccessibilityButton.setOnClickListener {
-            Log.d(TAG, "Start accessibility button clicked")
-            // Check overlay permission first
-            if (checkOverlayPermission()) {
-                // Start accessibility service
-                Toast.makeText(this@MainActivity, "Please enable the accessibility service in Settings", Toast.LENGTH_LONG).show()
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                startActivity(intent)
-            } else {
-                requestOverlayPermission()
-            }
-        }
-        
-        startRecordingButton.setOnClickListener {
-            Log.d(TAG, "Start recording button clicked")
-            // Check overlay permission first
-            if (checkOverlayPermission()) {
-                // Request screen capture permission
-                startActivityForResult(
-                    mediaProjectionManager.createScreenCaptureIntent(),
-                    MEDIA_PROJECTION_REQUEST_CODE
-                )
-            } else {
-                requestOverlayPermission()
-            }
-        }
-        
-        // New button for test mode
-        startRecordingTestModeButton.setOnClickListener {
-            Log.d(TAG, "Start recording test mode button clicked")
-            // Check overlay permission first
-            if (checkOverlayPermission()) {
-                // Request screen capture permission with test mode flag
-                val intent = mediaProjectionManager.createScreenCaptureIntent()
-                intent.putExtra("testingMode", true)
-                startActivityForResult(intent, MEDIA_PROJECTION_REQUEST_CODE)
-            } else {
-                requestOverlayPermission()
-            }
-        }
-        
-        stopAccessibilityButton.setOnClickListener {
-            Log.d(TAG, "Stop accessibility button clicked")
-            // Stop accessibility service (this is just a UI indicator, actual service is controlled by system)
-            Toast.makeText(this@MainActivity, "Please disable the accessibility service in Settings", Toast.LENGTH_SHORT).show()
-            isAccessibilityServiceRunning = false
-            updateButtonStates()
-        }
-        
-        stopRecordingButton.setOnClickListener {
-            Log.d(TAG, "Stop recording button clicked")
-            // Stop recording service
-            stopScreenshotService()
-        }
-        
         grantPermissionsButton.setOnClickListener {
             Log.d(TAG, "Grant permissions button clicked")
             requestAllPermissions()
         }
         
-        reviewPermissionsButton.setOnClickListener {
-            Log.d(TAG, "Review permissions button clicked")
-            // Abre la pantalla de configuración de la app para que el usuario pueda ajustar los permisos
-            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-            val uri = Uri.fromParts("package", packageName, null)
-            intent.data = uri
-            startActivity(intent)
-        }
-        
-        testOverlayButton.setOnClickListener {
-            // Show a test overlay
-            val testOverlay = TripOverlay(this@MainActivity)
-            // Create a mock trip info for testing
-            val mockTripInfo = com.rideanalyzer.app.model.TripInfo().apply {
-                platform = "Test"
-                price = 15000.0
-                distance = 15.5
-                estimatedMinutes = 25
-                rating = 4.8
-                isProfitable = true
-                pricePerKm = 967.74
-                pricePerMinute = 600.0
-                pricePerHour = 36000.0
+        startAccessibilityButton.setOnClickListener {
+            Log.d(TAG, "Start accessibility button clicked")
+            // Check if accessibility service is already running
+            if (AccessibilityServiceHelper.isRideAccessibilityServiceEnabled(this)) {
+                // If already running, take user to accessibility settings to disable it
+                Toast.makeText(this@MainActivity, "Taking you to accessibility settings to disable service", Toast.LENGTH_LONG).show()
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                startActivity(intent)
+            } else {
+                // Check overlay permission first
+                if (checkOverlayPermission()) {
+                    // Start accessibility service
+                    Toast.makeText(this@MainActivity, "Please enable the accessibility service in Settings", Toast.LENGTH_LONG).show()
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    startActivity(intent)
+                } else {
+                    requestOverlayPermission()
+                }
             }
-            testOverlay.showTripAnalysis(mockTripInfo)
-            
-            // Don't hide automatically - let user close it manually
-            // testOverlay.postDelayed({
-            //     testOverlay.hide()
-            // }, 5000)
         }
         
-        // New button for testing text overlay
-        testTextOverlayButton.setOnClickListener {
-            // Show a test text overlay
-            val testOverlay = TripOverlay(this@MainActivity)
-            val testText = "This is a test of the text overlay functionality.\n\n" +
-                    "It should display all detected text from the screen.\n\n" +
-                    "Current time: ${System.currentTimeMillis()}\n\n" +
-                    "This overlay should stay on screen and update with new content."
-            testOverlay.showAllDetectedText(testText)
+        startRecordingButton.setOnClickListener {
+            Log.d(TAG, "Start recording button clicked")
+            if (isRecordingServiceRunning) {
+                // Stop the service
+                stopScreenshotService()
+                startRecordingButton.text = "INICIAR"
+                startRecordingButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.neon_cyan)
+                systemStatusText.text = "Sistema listo para analizar"
+                statusIndicator.visibility = View.GONE
+            } else {
+                // Start the service
+                // Check overlay permission first
+                if (checkOverlayPermission()) {
+                    // Get desired hourly rate from input field
+                    val desiredHourlyRate = try {
+                        desiredHourlyRateInput.text.toString().toDouble()
+                    } catch (e: NumberFormatException) {
+                        10000.0 // Default value if input is invalid
+                    }
+                    
+                    // Request screen capture permission
+                    val intent = mediaProjectionManager.createScreenCaptureIntent()
+                    startActivityForResult(intent, MEDIA_PROJECTION_REQUEST_CODE)
+                } else {
+                    requestOverlayPermission()
+                }
+            }
         }
-        
-        // Add a simple test to check if overlay permission is working
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed({
-            testOverlayPermission()
-        }, 2000)
         
         updateButtonStates()
-    }
-    
-    private fun testOverlayPermission() {
-        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(this)
-        } else {
-            true
-        }
-        
-        Log.d(TAG, "Overlay permission status: $hasPermission")
-        Toast.makeText(this, "Overlay permission: $hasPermission", Toast.LENGTH_LONG).show()
-        
-        if (hasPermission) {
-            // Try to show a simple overlay
-            try {
-                val testOverlay = TripOverlay(this)
-                val mockTripInfo = com.rideanalyzer.app.model.TripInfo().apply {
-                    platform = "Permission Test"
-                    price = 1000.0
-                    distance = 5.0
-                    estimatedMinutes = 10
-                    isProfitable = true
-                }
-                testOverlay.showTripAnalysis(mockTripInfo)
-                Log.d(TAG, "Test overlay shown successfully")
-                
-                // Hide it after 3 seconds
-                testOverlay.postDelayed({
-                    testOverlay.hide()
-                }, 3000)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error showing test overlay", e)
-                Toast.makeText(this, "Error showing test overlay: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
     }
     
     override fun onResume() {
@@ -241,15 +154,19 @@ class MainActivity : Activity() {
         if (requestCode == MEDIA_PROJECTION_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
                 Log.d(TAG, "Media projection permission granted, starting service")
-                // Check if we're in test mode
-                val isTestMode = data.getBooleanExtra("testingMode", false)
-                Log.d(TAG, "Test mode: $isTestMode")
+                
+                // Get desired hourly rate from input field
+                val desiredHourlyRate = try {
+                    desiredHourlyRateInput.text.toString().toDouble()
+                } catch (e: NumberFormatException) {
+                    10000.0 // Default value if input is invalid
+                }
                 
                 // Permiso concedido, iniciamos el servicio real
                 val serviceIntent = Intent(this, ScreenshotService::class.java).apply {
                     putExtra("resultCode", resultCode)
                     putExtra("data", Intent(data)) // Create a new Intent with the data
-                    putExtra("testingMode", isTestMode) // Pass test mode flag
+                    putExtra("desiredHourlyRate", desiredHourlyRate) // Pass the desired hourly rate to the service
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startForegroundService(serviceIntent)
@@ -258,6 +175,10 @@ class MainActivity : Activity() {
                 }
                 Toast.makeText(this, "Iniciando servicio de grabación...", Toast.LENGTH_SHORT).show()
                 isRecordingServiceRunning = true
+                startRecordingButton.text = "APAGAR"
+                startRecordingButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.neon_red)
+                systemStatusText.text = "Analizando viajes"
+                statusIndicator.visibility = View.VISIBLE
                 updateButtonStates()
             } else {
                 Toast.makeText(this, "Screen capture permission is required", Toast.LENGTH_LONG).show()
@@ -306,6 +227,8 @@ class MainActivity : Activity() {
         val serviceIntent = Intent(this, ScreenshotService::class.java)
         stopService(serviceIntent)
         isRecordingServiceRunning = false
+        systemStatusText.text = "Sistema listo para analizar"
+        statusIndicator.visibility = View.GONE
         updateButtonStates()
     }
     
@@ -360,40 +283,46 @@ class MainActivity : Activity() {
         
         Log.d(TAG, "updateButtonStates: hasOverlayPermission=$hasOverlayPermission, allPermissionsGranted=$allPermissionsGranted, isAccessibilityServiceRunning=$isAccessibilityServiceRunning")
 
+        // Update the accessibility button text based on service status
+        if (isAccessibilityServiceRunning) {
+            startAccessibilityButton.text = "Accesibilidad activa"
+        } else {
+            startAccessibilityButton.text = "Activar Accesibilidad"
+        }
+
+        // Update the recording button text and color based on service status
+        if (isRecordingServiceRunning) {
+            startRecordingButton.text = "APAGAR"
+            startRecordingButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.neon_red)
+            systemStatusText.text = "Analizando viajes"
+            statusIndicator.visibility = View.VISIBLE
+        } else {
+            startRecordingButton.text = "INICIAR"
+            startRecordingButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.neon_cyan)
+            if (hasOverlayPermission && allPermissionsGranted) {
+                systemStatusText.text = "Sistema listo para analizar"
+            } else {
+                systemStatusText.text = "Sistema en espera"
+            }
+            statusIndicator.visibility = View.GONE
+        }
+
         // Lógica de visibilidad de botones
         if (!hasOverlayPermission) {
             // Si falta el permiso de superposición, es lo primero que se debe conceder
             Log.d(TAG, "Showing grant permissions button (missing overlay permission)")
-            grantPermissionsButton.visibility = Button.VISIBLE
-            reviewPermissionsButton.visibility = Button.GONE
-            startAccessibilityButton.visibility = Button.GONE
-            startRecordingButton.visibility = Button.GONE
-            stopAccessibilityButton.visibility = Button.GONE
-            stopRecordingButton.visibility = Button.GONE
+            grantPermissionsButton.visibility = MaterialButton.VISIBLE
+            startAccessibilityButton.visibility = MaterialButton.GONE
         } else if (!allPermissionsGranted) {
             // Si tiene superposición pero faltan otros permisos, mostramos el botón de revisar
-            Log.d(TAG, "Showing review permissions button (missing runtime permissions)")
-            grantPermissionsButton.visibility = Button.GONE
-            reviewPermissionsButton.visibility = Button.VISIBLE
-            startAccessibilityButton.visibility = Button.GONE
-            startRecordingButton.visibility = Button.GONE
-            stopAccessibilityButton.visibility = Button.GONE
-            stopRecordingButton.visibility = Button.GONE
+            Log.d(TAG, "Showing grant permissions button (missing runtime permissions)")
+            grantPermissionsButton.visibility = MaterialButton.VISIBLE
+            startAccessibilityButton.visibility = MaterialButton.GONE
         } else {
-            // Si todos los permisos están concedidos, mostramos los botones de control
-            Log.d(TAG, "Showing all control buttons (all permissions granted)")
-            grantPermissionsButton.visibility = Button.GONE
-            reviewPermissionsButton.visibility = Button.GONE
-            startAccessibilityButton.visibility = Button.VISIBLE
-            startRecordingButton.visibility = Button.VISIBLE
-            stopAccessibilityButton.visibility = Button.VISIBLE
-            stopRecordingButton.visibility = Button.VISIBLE
-            
-            // Update button states based on service status
-            startAccessibilityButton.isEnabled = !isAccessibilityServiceRunning
-            stopAccessibilityButton.isEnabled = isAccessibilityServiceRunning
-            startRecordingButton.isEnabled = !isRecordingServiceRunning
-            stopRecordingButton.isEnabled = isRecordingServiceRunning
+            // Si todos los permisos están concedidos, ocultamos el botón de permisos y mostramos el de accesibilidad
+            Log.d(TAG, "Hiding grant permissions button (all permissions granted)")
+            grantPermissionsButton.visibility = MaterialButton.GONE
+            startAccessibilityButton.visibility = MaterialButton.VISIBLE
         }
     }
     

@@ -3,6 +3,7 @@ package com.rideanalyzer.app.ui
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -12,15 +13,21 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import com.rideanalyzer.app.R
 import com.rideanalyzer.app.model.TripInfo
 
 class TripOverlay(private val context: Context) {
     private val windowManager = context.getSystemService<WindowManager>()
     private var overlayView: LinearLayout? = null
-    private var titleView: TextView? = null
-    private var detailsView: TextView? = null
-    private var recommendationView: TextView? = null
+    private var headerView: LinearLayout? = null
+    private var valueView: TextView? = null
+    private var timeView: TextView? = null
+    private var distanceView: TextView? = null
+    private var perMinuteView: TextView? = null
+    private var perKmView: TextView? = null
+    private var actionButton: TextView? = null
     private val handler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable { hide() }
     var isShowing = false
@@ -96,104 +103,242 @@ class TripOverlay(private val context: Context) {
     }
 
     private fun createOverlayView(tripInfo: TripInfo) {
+        // Create the main container with rounded corners and glass effect
         overlayView = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(30, 20, 30, 20)
-            setBackgroundColor(Color.parseColor("#E0000000")) // Semi-transparent black
+            // Set size to more generous proportions to match design (280dp width, ~380dp height)
+            layoutParams = android.view.ViewGroup.LayoutParams(dpToPx(220), dpToPx(340))
         }
 
-        // Platform and profitability indicator (matching original format)
-        val profitabilityText = if (tripInfo.isProfitable) "✓ RENTABLE" else "✗ NO RENTABLE"
-        val titleColor = if (tripInfo.isProfitable) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
-
-        titleView = TextView(context).apply {
-            text = "${tripInfo.platform} - $profitabilityText"
-            setTextColor(titleColor)
-            textSize = 18f
-            gravity = Gravity.CENTER
+        // Create background with gradient and border
+        val backgroundDrawable = GradientDrawable().apply {
+            cornerRadius = dpToPx(16).toFloat()
+            setColor(Color.parseColor("#E6121212")) // Semi-transparent dark background
+            setStroke(2, if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF0000")) // Neon border
         }
-        overlayView?.addView(titleView)
+        overlayView?.background = backgroundDrawable
 
-        // Trip details (matching original format)
-        val detailsText = buildString {
-            append("Precio: ${tripInfo.currency}${String.format("%.0f", tripInfo.price)}\n")
-            append("Distancia: ${String.format("%.1f", tripInfo.distance)} ${tripInfo.distanceUnit}\n")
-            if (tripInfo.estimatedMinutes > 0) {
-                append("Tiempo: ${tripInfo.estimatedMinutes} min\n")
-            }
-            tripInfo.rating?.let { rating ->
-                append("Rating: ${String.format("%.1f", rating)}\n")
-            }
-            if (tripInfo.pricePerKm > 0) {
-                append("Precio/km: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerKm)}\n")
-            }
-            if (tripInfo.pricePerMinute > 0) {
-                append("Precio/min: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerMinute)}")
-            }
+        // Create header with platform and profitability indicator
+        headerView = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
         }
 
-        detailsView = TextView(context).apply {
-            text = detailsText.trim()
+        // Create gradient background for header (neon cyan->purple when profitable, red->pink when not)
+        val headerBackground = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, if (tripInfo.isProfitable) {
+            intArrayOf(Color.parseColor("#1033FFFF"), Color.parseColor("#8033AAFF"))
+        } else {
+            intArrayOf(Color.parseColor("#40FF4444"), Color.parseColor("#FF6677"))
+        }).apply {
+            cornerRadius = dpToPx(8).toFloat()
+        }
+        headerView?.background = headerBackground
+
+        // Platform badge
+        val platformBadge = TextView(context).apply {
+            text = tripInfo.platform ?: "Unknown"
             setTextColor(Color.WHITE)
-            textSize = 14f
+            textSize = 12f
+            setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4))
+            // rounded badge background
+            val badgeBg = GradientDrawable().apply {
+                cornerRadius = dpToPx(12).toFloat()
+                setColor(if (tripInfo.isProfitable) Color.parseColor("#00BBBB") else Color.parseColor("#FF6B6B"))
+            }
+            background = badgeBg
         }
-        overlayView?.addView(detailsView)
+        headerView?.addView(platformBadge)
 
-        // Recommendation (matching original format)
-        val recommendation = if (tripInfo.isProfitable) "✓ Recomendado aceptar este viaje" else "✗ Este viaje podría no ser rentable"
-        recommendationView = TextView(context).apply {
-            text = recommendation
-            setTextColor(titleColor)
+        // Spacer
+        val spacer = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+        }
+        headerView?.addView(spacer)
+
+        // Profitability indicator
+        val profitabilityIndicator = TextView(context).apply {
+            text = if (tripInfo.isProfitable) "RENTABLE" else "NO RENTABLE"
+            setTextColor(if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF0000"))
+            textSize = 10f
+            setPadding(dpToPx(4), 0, 0, 0)
+        }
+        headerView?.addView(profitabilityIndicator)
+
+        overlayView?.addView(headerView)
+
+        // Value section with glow effect
+        val valueContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+            // inner rounded card
+            background = GradientDrawable(GradientDrawable.Orientation.BL_TR, if (tripInfo.isProfitable) {
+                intArrayOf(Color.parseColor("#1222FFFF"), Color.parseColor("#2E0F3F"))
+            } else {
+                intArrayOf(Color.parseColor("#40FF4444"), Color.parseColor("#40222A"))
+            }).apply {
+                cornerRadius = dpToPx(12).toFloat()
+                setStroke(dpToPx(1), Color.parseColor("#33FFFFFF"))
+            }
+        }
+
+        val valueLabel = TextView(context).apply {
+            text = "VALOR"
+            setTextColor(Color.parseColor("#B3FFFFFF")) // White with 70% opacity
+            textSize = 10f
+            gravity = Gravity.CENTER
+        }
+        valueContainer.addView(valueLabel)
+
+        valueView = TextView(context).apply {
+            text = "$${String.format("%,.0f", tripInfo.price)}"
+            setTextColor(if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B"))
+            textSize = 34f
+            gravity = Gravity.CENTER
+            setPadding(0, dpToPx(6), 0, 0)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        valueContainer.addView(valueView)
+
+        overlayView?.addView(valueContainer)
+
+        // Grid of data with icons
+        val gridContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10))
+        }
+
+        // Left column
+        val leftColumn = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setPadding(0, 0, dpToPx(4), 0)
+        }
+
+        // Time card
+        val timeCard = createDataCard("Tiempo", "${tripInfo.estimatedMinutes} min", "#2196F3")
+        timeView = timeCard.findViewById<TextView>(android.R.id.text1)
+        leftColumn.addView(timeCard)
+
+        // Per minute card
+        val perMinuteCard = createDataCard("$/min", "$${tripInfo.pricePerMinute.toInt()}", "#4CAF50")
+        perMinuteView = perMinuteCard.findViewById<TextView>(android.R.id.text1)
+        leftColumn.addView(perMinuteCard)
+
+        gridContainer.addView(leftColumn)
+
+        // Right column
+        val rightColumn = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setPadding(dpToPx(4), 0, 0, 0)
+        }
+
+        // Distance card
+        val distanceCard = createDataCard("Distancia", "${String.format("%.1f", tripInfo.distance)} km", "#9C27B0")
+        distanceView = distanceCard.findViewById<TextView>(android.R.id.text1)
+        rightColumn.addView(distanceCard)
+
+        // Per km card
+        val perKmCard = createDataCard("$/km", "$${tripInfo.pricePerKm.toInt()}", "#E91E63")
+        perKmView = perKmCard.findViewById<TextView>(android.R.id.text1)
+        rightColumn.addView(perKmCard)
+
+        gridContainer.addView(rightColumn)
+
+        overlayView?.addView(gridContainer)
+
+        // Action button with neon effect
+        actionButton = TextView(context).apply {
+            text = if (tripInfo.isProfitable) "⚡ ¡Viaje rentable!" else "✕ Rechazar"
+            setTextColor(Color.WHITE)
             textSize = 12f
             gravity = Gravity.CENTER
-            setPadding(0, 10, 0, 0)
-        }
-        overlayView?.addView(recommendationView)
-
-        // Close button
-        val closeButton = TextView(context).apply {
-            text = "✕ Cerrar"
-            setTextColor(Color.parseColor("#CCCCCC"))
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setPadding(0, 15, 0, 0)
+            setPadding(0, dpToPx(12), 0, dpToPx(12))
+            setBackgroundResource(if (tripInfo.isProfitable) 
+                R.drawable.profitable_button_background 
+            else 
+                R.drawable.non_profitable_button_background)
             setOnClickListener { hide() }
         }
-        overlayView?.addView(closeButton)
+        overlayView?.addView(actionButton)
+    }
+
+    private fun createDataCard(label: String, value: String, color: String): LinearLayout {
+        return LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(10), dpToPx(8), dpToPx(10), dpToPx(8))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 0, 0, dpToPx(4))
+            }
+            
+            // Background with border
+            val background = GradientDrawable().apply {
+                cornerRadius = dpToPx(6).toFloat()
+                setColor(Color.parseColor("#801E1E1E")) // Dark background with transparency
+                setStroke(1, Color.parseColor("#4D757575")) // Gray border
+            }
+            setBackground(background)
+            
+            // Label
+            val labelView = TextView(context).apply {
+                text = label
+                setTextColor(Color.parseColor(color))
+                textSize = 11f
+                setPadding(0, 0, 0, dpToPx(4))
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+            addView(labelView)
+            
+            // Value
+            val valueView = TextView(context).apply {
+                id = android.R.id.text1
+                text = value
+                setTextColor(Color.WHITE)
+                textSize = 14f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setPadding(0, 0, 0, dpToPx(4))
+            }
+            addView(valueView)
+        }
     }
 
     private fun updateOverlayView(tripInfo: TripInfo) {
-        // Update the existing views with new data
-        val profitabilityText = if (tripInfo.isProfitable) "✓ RENTABLE" else "✗ NO RENTABLE"
-        val titleColor = if (tripInfo.isProfitable) Color.parseColor("#4CAF50") else Color.parseColor("#F44336")
+        // Update all the views with new data
+        valueView?.text = "$${String.format("%,.0f", tripInfo.price)}"
+        timeView?.text = "${tripInfo.estimatedMinutes} min"
+        distanceView?.text = "${String.format("%.1f", tripInfo.distance)} km"
+        perMinuteView?.text = "$${tripInfo.pricePerMinute.toInt()}"
+        perKmView?.text = "$${tripInfo.pricePerKm.toInt()}"
+        actionButton?.text = if (tripInfo.isProfitable) "⚡ ¡Viaje rentable!" else "✕ Rechazar"
         
-        titleView?.text = "${tripInfo.platform} - $profitabilityText"
-        titleView?.setTextColor(titleColor)
+        // Update colors based on profitability
+        val textColor = if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B")
+        valueView?.setTextColor(textColor)
 
-        // Trip details (matching original format)
-        val detailsText = buildString {
-            append("Precio: ${tripInfo.currency}${String.format("%.0f", tripInfo.price)}\n")
-            append("Distancia: ${String.format("%.1f", tripInfo.distance)} ${tripInfo.distanceUnit}\n")
-            if (tripInfo.estimatedMinutes > 0) {
-                append("Tiempo: ${tripInfo.estimatedMinutes} min\n")
-            }
-            tripInfo.rating?.let { rating ->
-                append("Rating: ${String.format("%.1f", rating)}\n")
-            }
-            if (tripInfo.pricePerKm > 0) {
-                append("Precio/km: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerKm)}\n")
-            }
-            if (tripInfo.pricePerMinute > 0) {
-                append("Precio/min: ${tripInfo.currency}${String.format("%.2f", tripInfo.pricePerMinute)}")
-            }
+        // Update header background (gradient)
+        val headerBg = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, if (tripInfo.isProfitable) {
+            intArrayOf(Color.parseColor("#1033FFFF"), Color.parseColor("#8033AAFF"))
+        } else {
+            intArrayOf(Color.parseColor("#40FF4444"), Color.parseColor("#FF6677"))
+        }).apply { cornerRadius = dpToPx(8).toFloat() }
+        headerView?.background = headerBg
+
+        // Update border/background of the overlay
+        val backgroundDrawable = GradientDrawable().apply {
+            cornerRadius = dpToPx(16).toFloat()
+            setColor(Color.parseColor("#E6000000")) // darker glass
+            setStroke(dpToPx(2), if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B"))
         }
+        overlayView?.background = backgroundDrawable
 
-        detailsView?.text = detailsText.trim()
-
-        // Recommendation (matching original format)
-        val recommendation = if (tripInfo.isProfitable) "✓ Recomendado aceptar este viaje" else "✗ Este viaje podría no ser rentable"
-        recommendationView?.text = recommendation
-        recommendationView?.setTextColor(titleColor)
+        // Update action button background (drawables kept, create them if missing)
+        actionButton?.setBackgroundResource(if (tripInfo.isProfitable)
+            R.drawable.profitable_button_background
+        else
+            R.drawable.non_profitable_button_background)
         
         Log.d(TAG, "Trip overlay updated with new data: $tripInfo")
     }
@@ -202,14 +347,14 @@ class TripOverlay(private val context: Context) {
     private fun createTextOverlayView(detectedText: String) {
         overlayView = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(30, 20, 30, 20)
+            setPadding(dpToPx(20), dpToPx(16), dpToPx(20), dpToPx(16))
             setBackgroundColor(Color.parseColor("#E0000000")) // Semi-transparent black
         }
 
         // Title
         val titleView = TextView(context).apply {
             text = "ML Kit Text Detection"
-            setTextColor(Color.parseColor("#4CAF50")) // Green color
+            setTextColor(Color.parseColor("#00FFFF")) // Cyan color
             textSize = 18f
             gravity = Gravity.CENTER
         }
@@ -222,7 +367,7 @@ class TripOverlay(private val context: Context) {
             detectedText
         }
 
-        detailsView = TextView(context).apply {
+        val detailsView = TextView(context).apply {
             text = displayText
             setTextColor(Color.WHITE)
             textSize = 12f
@@ -235,7 +380,7 @@ class TripOverlay(private val context: Context) {
             setTextColor(Color.parseColor("#CCCCCC"))
             textSize = 12f
             gravity = Gravity.CENTER
-            setPadding(0, 15, 0, 0)
+            setPadding(0, dpToPx(15), 0, 0)
             setOnClickListener { hide() }
         }
         overlayView?.addView(closeButton)
@@ -249,7 +394,12 @@ class TripOverlay(private val context: Context) {
             detectedText
         }
         
-        detailsView?.text = displayText
+        // Find the details view in the overlay
+        if (overlayView?.childCount ?: 0 > 1) {
+            val detailsView = overlayView?.getChildAt(1) as? TextView
+            detailsView?.text = displayText
+        }
+        
         Log.d(TAG, "Text overlay updated with new data")
     }
 
@@ -261,18 +411,23 @@ class TripOverlay(private val context: Context) {
             WindowManager.LayoutParams.TYPE_PHONE
         }
 
-        return WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+    return WindowManager.LayoutParams(
+        dpToPx(220), // Thinner width to match reference
+        dpToPx(340), // Slightly reduced height for better proportion
                 overlayType,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 200 // Distance from top
+            gravity = Gravity.TOP or Gravity.START
+            x = dpToPx(20) // Position from left
+            y = dpToPx(100) // Position from top
         }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
     }
 
     fun hide() {
@@ -284,9 +439,13 @@ class TripOverlay(private val context: Context) {
                 windowManager?.removeView(overlayView)
                 isShowing = false
                 overlayView = null
-                titleView = null
-                detailsView = null
-                recommendationView = null
+                headerView = null
+                valueView = null
+                timeView = null
+                distanceView = null
+                perMinuteView = null
+                perKmView = null
+                actionButton = null
                 Log.d(TAG, "Trip overlay hidden")
             } catch (e: Exception) {
                 Log.e(TAG, "Error hiding overlay", e)

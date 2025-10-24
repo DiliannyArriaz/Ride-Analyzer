@@ -41,6 +41,8 @@ class ScreenshotService : Service() {
     private var showAllTextForTesting: Boolean = false // Flag for testing mode
     private var lastOcrAttemptTime: Long = 0
     private val OCR_DEBOUNCE_INTERVAL_MS: Long = 900L // 900ms debounce
+    // Percentage of the screen height where cropping starts (0.0..1.0)
+    private var cropStartPercent: Float = 0.30f // 30% from top by default (increased area)
     
     private lateinit var captureRunnable: Runnable
     
@@ -82,6 +84,13 @@ class ScreenshotService : Service() {
             val testingMode = it.getBooleanExtra("testingMode", false)
             showAllTextForTesting = testingMode
             tripAnalyzer.enableShowAllTextForTesting(testingMode)
+            
+            // Get desired hourly rate from intent
+            val desiredHourlyRate = it.getDoubleExtra("desiredHourlyRate", 10000.0)
+            // Pass this to TripAnalyzer
+            tripAnalyzer.desiredHourlyRate = desiredHourlyRate
+            Log.d(TAG, "Desired hourly rate set to: $desiredHourlyRate ARS/hour")
+            Log.d(TAG, "Verified TripAnalyzer desiredHourlyRate: ${tripAnalyzer.desiredHourlyRate}")
             
             Log.d(TAG, "Received resultCode: $resultCode")
             Log.d(TAG, "Received data: $data")
@@ -155,9 +164,9 @@ class ScreenshotService : Service() {
             if (bitmap != null) {
                 Log.d(TAG, "Bitmap created: ${bitmap.width}x${bitmap.height}")
                 
-                // Crop to bottom half
-                val croppedBitmap = ImagePreprocessor.cropBottomHalf(bitmap)
-                Log.d(TAG, "Cropped bitmap: ${croppedBitmap.width}x${croppedBitmap.height}")
+                // Try multiple cropping strategies for better detection
+                val croppedBitmap = tryMultipleCroppingStrategies(bitmap)
+                Log.d(TAG, "Cropped bitmap: ${croppedBitmap.width}x${croppedBitmap.height} (startPercent=$cropStartPercent)")
                 
                 // Create a simple hash to detect if the image has changed significantly
                 val currentHash = croppedBitmap.hashCode()
@@ -168,8 +177,8 @@ class ScreenshotService : Service() {
                 // Check if the cropped region is mostly black (FLAG_SECURE detection)
                 if (ImagePreprocessor.isMostlyBlack(croppedBitmap)) {
                     Log.d(TAG, "Skipping OCR (black) - capture_blocked_flag_secure")
-                    // Save debug image - disabled to avoid BuildConfig issues
-                    // saveDebugImage(croppedBitmap, "bottom_crop")
+                    // Save debug image for inspection
+                    saveDebugImage(croppedBitmap, "black_screen")
                     // Recycle bitmaps
                     if (!croppedBitmap.isRecycled) {
                         croppedBitmap.recycle()
@@ -177,8 +186,12 @@ class ScreenshotService : Service() {
                     if (!bitmap.isRecycled) {
                         bitmap.recycle()
                     }
+                    image.close()
                     return
                 }
+                
+                // Save debug image for inspection
+                saveDebugImage(croppedBitmap, "ocr_input")
                 
                 // Only process if the image has changed significantly
                 if (hashDifference > IMAGE_CHANGE_THRESHOLD) {
@@ -189,8 +202,8 @@ class ScreenshotService : Service() {
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastOcrAttemptTime < OCR_DEBOUNCE_INTERVAL_MS) {
                         Log.d(TAG, "Skipping OCR due to debounce - ${currentTime - lastOcrAttemptTime}ms since last attempt")
-                        // Save debug image - disabled to avoid BuildConfig issues
-                        // saveDebugImage(croppedBitmap, "bottom_crop")
+                        // Save debug image for inspection
+                        saveDebugImage(croppedBitmap, "debounced")
                         // Recycle bitmaps
                         if (!croppedBitmap.isRecycled) {
                             croppedBitmap.recycle()
@@ -198,15 +211,13 @@ class ScreenshotService : Service() {
                         if (!bitmap.isRecycled) {
                             bitmap.recycle()
                         }
+                        image.close()
                         return
                     }
                     
                     // Update last OCR attempt time
                     lastOcrAttemptTime = currentTime
                     Log.d(TAG, "OCR attempt start")
-                    
-                    // Save debug image - disabled to avoid BuildConfig issues
-                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     
                     // Indicate we're analyzing
                     isAnalyzing = true
@@ -221,14 +232,13 @@ class ScreenshotService : Service() {
                             Log.d(TAG, "Trip info detected: $tripInfo")
                             updateNotification("Ride Analyzer - Trip Detected", "Analyzing ride offers... Tap to open app", true)
                         } else {
-                            Log.d(TAG, "No trip info detected in screenshot")
+                            Log.d(TAG, "No trip info detected in screenshot, hiding overlay")
+                            tripAnalyzer.hideOverlay() // Hide the overlay when no trip is detected
                             updateNotification("Ride Analyzer", "Actively analyzing screen for ride offers...", true)
                         }
                     }
                 } else {
                     Log.d(TAG, "Image hasn't changed significantly, skipping analysis")
-                    // Save debug image - disabled to avoid BuildConfig issues
-                    // saveDebugImage(croppedBitmap, "bottom_crop")
                     // Image hasn't changed significantly, recycle bitmaps
                     if (!croppedBitmap.isRecycled) {
                         croppedBitmap.recycle()
@@ -247,6 +257,29 @@ class ScreenshotService : Service() {
         } finally {
             image.close()
         }
+    }
+    
+    /**
+     * Try multiple cropping strategies to improve OCR accuracy
+     */
+    private fun tryMultipleCroppingStrategies(bitmap: Bitmap): Bitmap {
+        Log.d(TAG, "Trying multiple cropping strategies")
+        
+        // Strategy 1: Bottom half (default)
+        val cropped1 = ImagePreprocessor.cropBottomHalf(bitmap, cropStartPercent)
+        Log.d(TAG, "Strategy 1 (Bottom half): ${cropped1.width}x${cropped1.height}")
+        
+        // Strategy 2: Middle region (more focused)
+        val cropped2 = ImagePreprocessor.cropMiddleRegion(bitmap, 0.25f, 0.65f)
+        Log.d(TAG, "Strategy 2 (Middle region): ${cropped2.width}x${cropped2.height}")
+        
+        // Strategy 3: Larger bottom region
+        val cropped3 = ImagePreprocessor.cropBottomHalf(bitmap, 0.20f)
+        Log.d(TAG, "Strategy 3 (Larger bottom): ${cropped3.width}x${cropped3.height}")
+        
+        // For now, return the default strategy but log all options
+        // In the future, we could implement logic to choose the best strategy
+        return cropped1
     }
     
     private fun imageToBitmap(image: Image): Bitmap? {
@@ -362,7 +395,7 @@ class ScreenshotService : Service() {
         private const val TAG = "ScreenshotService"
         private const val SERVICE_ID = 1001
         private const val CHANNEL_ID = "ScreenCaptureChannel"
-        private const val CAPTURE_INTERVAL_MS: Long = 2000L // 2 seconds for better detection
-        private const val IMAGE_CHANGE_THRESHOLD: Int = 50000 // Lower threshold for better sensitivity
+        private const val CAPTURE_INTERVAL_MS: Long = 1500L // Reduced to 1.5 seconds for better detection
+        private const val IMAGE_CHANGE_THRESHOLD: Int = 30000 // Lower threshold for better sensitivity
     }
 }

@@ -2,7 +2,6 @@ package com.rideanalyzer.app.util
 
 import android.util.Log
 import com.rideanalyzer.app.model.TripInfo
-import java.util.regex.Pattern
 
 /**
  * Utility class specifically designed to extract trip information from Uber and DiDi apps.
@@ -15,14 +14,16 @@ class RideAppTextExtractor {
      * This method is optimized for the specific text patterns used by these apps.
      */
     fun extractTripInfoFromRideApp(text: String, packageName: String): TripInfo? {
-        Log.d(TAG, "Extracting trip info from ride app text. Package: $packageName")
+        Log.d(TAG, "=== EXTRACTING TRIP INFO FROM RIDE APP ===")
+        Log.d(TAG, "Package name: $packageName")
+        Log.d(TAG, "Text length: ${text.length}")
         
         val tripInfo = TripInfo()
         
         // Determine platform based on package name
         tripInfo.platform = when {
             packageName.startsWith("com.ubercab") -> "Uber"
-            packageName.startsWith("com.didi") -> "DiDi"
+            packageName.startsWith("com.didiglobal.driver") -> "DiDi"
             else -> "Unknown Ride App"
         }
         
@@ -74,6 +75,7 @@ class RideAppTextExtractor {
      */
     private fun extractDiDiInfo(text: String, tripInfo: TripInfo) {
         Log.d(TAG, "Extracting DiDi-specific information")
+        Log.d(TAG, "DiDi text analysis - length: ${text.length}")
         
         // Extract price with DiDi-specific patterns
         extractPrice(text, tripInfo)
@@ -86,6 +88,8 @@ class RideAppTextExtractor {
         
         // Extract rating if available
         extractRating(text, tripInfo)
+        
+        Log.d(TAG, "DiDi extraction completed - TripInfo: $tripInfo")
     }
     
     /**
@@ -106,11 +110,13 @@ class RideAppTextExtractor {
      */
     private fun extractPrice(text: String, tripInfo: TripInfo) {
         Log.d(TAG, "Extracting price information")
+        Log.d(TAG, "Price extraction - text length: ${text.length}")
         
-        // Pattern for currency followed by amount (e.g., "ARS 10,200", "$15.50")
+        // Pattern for currency followed by amount (e.g., "ARS10,200", "$15.50")
+        // Updated to avoid detecting prices with + sign like "+ARS 9435"
         val pricePatterns = listOf(
-            Regex("(ARS|\\$|€|£)\\s*([\\d,.]+)", RegexOption.IGNORE_CASE),
-            Regex("([\\d,.]+)\\s*(ARS|\\$|€|£)", RegexOption.IGNORE_CASE)
+            Regex("(?<!\\+)\\s*(ARS|\\$|€|£)\\s*([\\d,.]+)", RegexOption.IGNORE_CASE),
+            Regex("([\\d,.]+)\\s*(ARS|\\$|€|£)(?!\\+)", RegexOption.IGNORE_CASE)
         )
         
         var maxPrice = 0.0
@@ -123,12 +129,17 @@ class RideAppTextExtractor {
                 val currency = if (groups[1].isCurrencySymbol()) groups[1] else groups[2]
                 val amount = if (groups[1].isCurrencySymbol()) groups[2] else groups[1]
                 
-                val priceValue = amount.replace(",", "").replace(".", "").toDoubleOrNull()
-                if (priceValue != null && priceValue > maxPrice && priceValue > 100) { // Minimum reasonable price
+                // Properly parse the amount with thousands separators and decimal points
+                val cleanedAmount = amount.replace(",", "").replace(".", "")
+                val priceValue = cleanedAmount.toDoubleOrNull()
+                Log.d(TAG, "Price pattern match - currency: $currency, amount: $amount, cleaned: $cleanedAmount, parsed value: $priceValue")
+                
+                // Add reasonable limits to avoid picking up random numbers
+                if (priceValue != null && priceValue > maxPrice && priceValue > 100 && priceValue < 100000) { // Reasonable price range for rides
                     maxPrice = priceValue
                     tripInfo.currency = currency
                     foundPrice = true
-                    Log.d(TAG, "Found price: $priceValue $currency from '$match'")
+                    Log.d(TAG, "Found price candidate: $priceValue $currency from '$match'")
                 }
             }
         }
@@ -147,6 +158,7 @@ class RideAppTextExtractor {
      */
     private fun extractTotalDistance(text: String, tripInfo: TripInfo) {
         Log.d(TAG, "Extracting total distance information")
+        Log.d(TAG, "Distance extraction - text length: ${text.length}")
         
         var totalDistance = 0.0
         
@@ -157,7 +169,7 @@ class RideAppTextExtractor {
             val distanceValue = match.groupValues[1].replace(",", ".").toDoubleOrNull()
             if (distanceValue != null) {
                 totalDistance += distanceValue
-                Log.d(TAG, "Found pickup distance: $distanceValue ${match.groupValues[2]}")
+                Log.d(TAG, "Found pickup distance: $distanceValue ${match.groupValues[2]} from match: ${match.value}")
             }
         }
         
@@ -168,7 +180,7 @@ class RideAppTextExtractor {
             val distanceValue = match.groupValues[1].replace(",", ".").toDoubleOrNull()
             if (distanceValue != null) {
                 totalDistance += distanceValue
-                Log.d(TAG, "Found trip distance: $distanceValue ${match.groupValues[2]}")
+                Log.d(TAG, "Found trip distance: $distanceValue ${match.groupValues[2]} from match: ${match.value}")
             }
         }
         
@@ -180,7 +192,7 @@ class RideAppTextExtractor {
                 val distanceValue = it.groupValues[1].replace(",", ".").toDoubleOrNull()
                 if (distanceValue != null && distanceValue > 0) {
                     totalDistance = distanceValue
-                    Log.d(TAG, "Found generic distance: $distanceValue ${it.groupValues[2]}")
+                    Log.d(TAG, "Found generic distance: $distanceValue ${it.groupValues[2]} from match: ${it.value}")
                 }
             }
         }
@@ -190,6 +202,8 @@ class RideAppTextExtractor {
             // Always set to km for consistency
             tripInfo.distanceUnit = "km"
             Log.d(TAG, "Final total distance: ${tripInfo.distance} ${tripInfo.distanceUnit}")
+        } else {
+            Log.d(TAG, "No distance found")
         }
     }
     
@@ -199,6 +213,7 @@ class RideAppTextExtractor {
      */
     private fun extractTotalTime(text: String, tripInfo: TripInfo) {
         Log.d(TAG, "Extracting total time information")
+        Log.d(TAG, "Time extraction - text length: ${text.length}")
         
         var totalTime = 0
         
@@ -209,7 +224,7 @@ class RideAppTextExtractor {
             val timeValue = match.groupValues[1].toIntOrNull()
             if (timeValue != null) {
                 totalTime += timeValue
-                Log.d(TAG, "Found pickup time: $timeValue min")
+                Log.d(TAG, "Found pickup time: $timeValue min from match: ${match.value}")
             }
         }
         
@@ -220,7 +235,7 @@ class RideAppTextExtractor {
             val timeValue = match.groupValues[1].toIntOrNull()
             if (timeValue != null) {
                 totalTime += timeValue
-                Log.d(TAG, "Found trip time: $timeValue min")
+                Log.d(TAG, "Found trip time: $timeValue min from match: ${match.value}")
             }
         }
         
@@ -232,7 +247,7 @@ class RideAppTextExtractor {
                 val timeValue = it.groupValues[1].toIntOrNull()
                 if (timeValue != null && timeValue > 0) {
                     totalTime = timeValue
-                    Log.d(TAG, "Found generic time: $timeValue min")
+                    Log.d(TAG, "Found generic time: $timeValue min from match: ${it.value}")
                 }
             }
         }
@@ -240,6 +255,8 @@ class RideAppTextExtractor {
         if (totalTime > 0) {
             tripInfo.estimatedMinutes = totalTime
             Log.d(TAG, "Final total time: ${tripInfo.estimatedMinutes} min")
+        } else {
+            Log.d(TAG, "No time found")
         }
     }
     
@@ -248,13 +265,14 @@ class RideAppTextExtractor {
      */
     private fun extractRating(text: String, tripInfo: TripInfo) {
         Log.d(TAG, "Extracting rating information")
+        Log.d(TAG, "Rating extraction - text length: ${text.length}")
         
         val ratingMatcher = Regex("([\\d.,]+)\\s*\\(\\d+\\s*(ratings?|reviews?)\\)", RegexOption.IGNORE_CASE).find(text)
         ratingMatcher?.let {
             val ratingValue = it.groupValues[1].replace(',', '.').toDoubleOrNull()
             if (ratingValue != null) {
                 tripInfo.rating = ratingValue
-                Log.d(TAG, "Extracted rating: ${tripInfo.rating}")
+                Log.d(TAG, "Extracted rating: ${tripInfo.rating} from match: ${it.value}")
             }
         }
     }

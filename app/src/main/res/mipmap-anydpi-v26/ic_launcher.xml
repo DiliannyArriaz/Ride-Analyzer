@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- background can be a color or a drawable; keep transparent/dark to let the logo show -->
+    <background android:drawable="@color/dark_background" />
+    <!-- foreground uses the chip-only drawable for the app icon -->
+    <foreground android:drawable="@drawable/ic_app_chip" />
+</adaptive-icon>

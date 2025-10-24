@@ -22,7 +22,7 @@ data class TripInfo(
      * Checks if the essential information for a trip has been extracted.
      */
     fun isValid(): Boolean {
-        return platform != null && price > 0 && distance > 0
+        return platform != null && platform != "Desconocido" && price > 100 && price < 100000 && distance > 0 && distance < 1000 && estimatedMinutes >= 0 && estimatedMinutes < 1000
     }
     
     /**

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="200dp"
+    android:viewportWidth="1000"
+    android:viewportHeight="400">
+
+    <group android:translateX="500" android:translateY="200">
+        <!-- Chip exterior -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#06B6D4"
+            android:strokeWidth="3"
+            android:pathData="M-60,-60 h120 q8,0 8,8 v104 q0,8 -8,8 h-120 q-8,0 -8,-8 v-104 q0,-8 8,-8"/>
+            
+        <path
+            android:fillColor="#1e293b"
+            android:strokeColor="#A855F7"
+            android:strokeWidth="2"
+            android:pathData="M-50,-50 h100 q6,0 6,6 v88 q0,6 -6,6 h-100 q-6,0 -6,-6 v-88 q0,-6 6,-6"/>
+
+        <!-- Pines del chip -->
+        <group android:strokeColor="#06B6D4" android:strokeWidth="2">
+            <!-- Pines laterales izquierdos -->
+            <path android:pathData="M-60,-35 h-10"/>
+            <path android:pathData="M-60,-15 h-10"/>
+            <path android:pathData="M-60,5 h-10"/>
+            <path android:pathData="M-60,25 h-10"/>
+            
+            <!-- Pines laterales derechos -->
+            <path android:pathData="M60,-35 h10"/>
+            <path android:pathData="M60,-15 h10"/>
+            <path android:pathData="M60,5 h10"/>
+            <path android:pathData="M60,25 h10"/>
+            
+            <!-- Pines superiores -->
+            <path android:pathData="M-35,-60 v-10"/>
+            <path android:pathData="M-15,-60 v-10"/>
+            <path android:pathData="M5,-60 v-10"/>
+            <path android:pathData="M25,-60 v-10"/>
+            
+            <!-- Pines inferiores -->
+            <path android:pathData="M-35,60 v10"/>
+            <path android:pathData="M-15,60 v10"/>
+            <path android:pathData="M5,60 v10"/>
+            <path android:pathData="M25,60 v10"/>
+        </group>
+
+        <!-- Carro y gráfico -->
+        <group android:translateY="-10">
+            <!-- Carro simplificado -->
+            <path
+                android:fillColor="#06B6D4"
+                android:pathData="M-15,0 l-5,8 h40 l-5,-8 l-5,-6 h-20 z"/>
+            <path
+                android:fillColor="#A855F7"
+                android:pathData="M-12,10 a3,3 0 1,1 0,-0.01 M12,10 a3,3 0 1,1 0,-0.01"/>
+        </group>
+
+        <!-- Gráfico de análisis -->
+        <group android:translateY="15">
+            <path
+                android:strokeColor="#A855F7"
+                android:strokeWidth="2.5"
+                android:pathData="M-25,15 l15,-10 l15,5 l15,-10"/>
+            <path
+                android:fillColor="#A855F7"
+                android:pathData="M-25,15 a2.5,2.5 0 1,1 0,-0.01"/>
+            <path
+                android:fillColor="#A855F7"
+                android:pathData="M-10,5 a2.5,2.5 0 1,1 0,-0.01"/>
+            <path
+                android:fillColor="#A855F7"
+                android:pathData="M5,10 a2.5,2.5 0 1,1 0,-0.01"/>
+            <path
+                android:fillColor="#A855F7"
+                android:pathData="M20,0 a2.5,2.5 0 1,1 0,-0.01"/>
+        </group>
+
+        <!-- Texto -->
+        <group android:translateX="85">
+            <path
+                android:fillColor="#06B6D4"
+                android:pathData="M0,-10 h200"
+                android:strokeColor="#06B6D4"
+                android:strokeWidth="32"/>
+            <text
+                android:fillColor="#06B6D4"
+                android:fontFamily="monospace"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"
+                android:y="-10dp">RIDE</text>
+            <text
+                android:fillColor="#A855F7"
+                android:fontFamily="monospace"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"
+                android:y="20dp">ANALYZER</text>
+            <path
+                android:strokeColor="#06B6D4"
+                android:strokeWidth="2"
+                android:pathData="M0,28 h170"/>
+            <text
+                android:fillColor="#64748B"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.2"
+                android:y="45dp">&lt;/PROFIT_OPTIMIZATION&gt;</text>
+        </group>
+    </group>
+</vector>

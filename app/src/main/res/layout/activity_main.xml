@@ -1,80 +1,208 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:background="@color/dark_background"
     android:padding="16dp">
 
+
+    <!-- Header: chip centrado + RIDE ANALYZER debajo (más pequeño y centrado) -->
+    <LinearLayout
+        android:id="@+id/headerContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/headerChip"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_app_chip"
+            android:contentDescription="Chip logo"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/headerRide"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RIDE"
+            android:textColor="@color/neon_cyan"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.08"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/headerAnalyzer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ANALYZER"
+            android:textColor="@color/neon_purple"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.08"
+            android:layout_marginTop="2dp"
+            android:gravity="center" />
+
+        <View
+            android:layout_width="100dp"
+            android:layout_height="3dp"
+            android:layout_marginTop="6dp"
+            android:background="@color/neon_cyan" />
+
+    </LinearLayout>
+
     <TextView
-        android:layout_width="match_parent"
+        android:id="@+id/subtitleTextView"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textSize="24sp"
+        android:layout_marginTop="4dp"
+        android:text="⚡ MAXIMIZA TUS GANANCIAS ⚡"
+        android:textColor="@color/neon_cyan"
+        android:textSize="14sp"
         android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="32dp" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/headerContainer" />
 
-    <Button
-        android:id="@+id/startAccessibilityButton"
+    <!-- Card principal -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/mainCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/start_accessibility_service"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginTop="32dp"
+        app:cardBackgroundColor="@color/dark_card"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="8dp"
+        app:layout_constraintTop_toBottomOf="@id/subtitleTextView">
 
-    <Button
-        android:id="@+id/stopAccessibilityButton"
-        android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Botones de permisos -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/grantPermissionsButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:padding="16dp"
+                android:text="Conceder permisos"
+                android:textColor="@color/neon_cyan"
+                app:strokeColor="@color/neon_cyan"
+                app:strokeWidth="2dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/startAccessibilityButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:padding="16dp"
+                android:text="Activar Accesibilidad"
+                android:textColor="@color/neon_cyan"
+                app:strokeColor="@color/neon_cyan"
+                app:strokeWidth="2dp" />
+
+            <!-- Campo de ganancia por hora -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="GANANCIA POR HORA"
+                android:textColor="@color/neon_cyan"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="$"
+                app:boxBackgroundColor="@color/dark_background"
+                app:boxStrokeColor="@color/neon_cyan"
+                app:hintTextColor="@color/neon_cyan">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/desiredHourlyRateInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="10000"
+                    android:textColor="@color/text_light"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+
+            <!-- Botón grande de inicio/parada -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/startRecordingButton"
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:layout_marginTop="24dp"
+                android:text="INICIAR"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/neon_cyan"
+                app:cornerRadius="16dp" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- Estado del sistema -->
+    <TextView
+        android:id="@+id/systemStatusText"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/stop_accessibility_service"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginTop="16dp"
+        android:background="@drawable/status_background"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="12dp"
+        android:text="Sistema en espera"
+        android:textColor="@color/text_secondary"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/mainCard" />
 
-    <Button
-        android:id="@+id/startRecordingButton"
-        android:layout_width="match_parent"
+    <!-- Green dot indicator -->
+    <View
+        android:id="@+id/statusIndicator"
+        android:layout_width="12dp"
+        android:layout_height="12dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/green_dot"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/systemStatusText"
+        app:layout_constraintEnd_toStartOf="@id/systemStatusText"
+        app:layout_constraintTop_toTopOf="@id/systemStatusText" />
+
+    <!-- Footer -->
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Start Screen Recording"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="16dp"
+        android:text="UBER • DIDI (SOON)"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-    <Button
-        android:id="@+id/stopRecordingButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Stop Screen Recording"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/startRecordingTestModeButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Start Screen Recording (Test Mode)"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/grantPermissionsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/grant_permissions"
-        android:layout_marginBottom="8dp" />
-
-    <Button
-        android:id="@+id/reviewPermissionsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/review_permissions"
-        android:layout_marginBottom="8dp" />
-
-    <Button
-        android:id="@+id/testOverlayButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/test_overlay"
-        android:layout_marginBottom="8dp" />
-
-    <Button
-        android:id="@+id/testTextOverlayButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Test Text Overlay"
-        android:layout_marginBottom="8dp" />
-
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

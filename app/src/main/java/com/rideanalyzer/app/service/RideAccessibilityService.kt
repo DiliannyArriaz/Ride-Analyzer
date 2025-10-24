@@ -15,6 +15,9 @@ class RideAccessibilityService : AccessibilityService() {
     private lateinit var tripOverlay: TripOverlay
     private lateinit var rideAppTextExtractor: RideAppTextExtractor
     private var isMonitoring = false
+    private var lastPackageName: String? = null
+    private var lastUpdateTime: Long = 0
+    private val MIN_UPDATE_INTERVAL = 300L // Increased to 300ms to reduce system load on mid to low-end devices
     
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -28,30 +31,49 @@ class RideAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!isMonitoring) return
         
-        event?.let { 
-            // Check if we're in Uber or DiDi app (more specific package names)
-            val packageName = it.packageName?.toString() ?: return
-            val isRideApp = isTargetRideApp(packageName)
+        if (event == null) return
+        
+        // Check if we're in Uber or DiDi app (more specific package names)
+        val packageName = event.packageName?.toString() ?: return
+        
+        val isRideApp = isTargetRideApp(packageName)
+        
+        // Update last package name
+        lastPackageName = packageName
+        
+        if (isRideApp) {
+            Log.d(TAG, "Detected target ride app: $packageName")
+            if (packageName.startsWith("com.didiglobal.driver")) {
+                Log.d(TAG, "Detected DiDi app specifically: $packageName")
+            }
             
-            if (isRideApp) {
-                Log.d(TAG, "Detected target ride app: $packageName")
-                
-                // Extract trip information from UI hierarchy using the specialized extractor
-                val tripInfo = extractTripInfoFromUI(rootInActiveWindow, packageName)
-                if (tripInfo != null && tripInfo.isValid()) {
-                    Log.d(TAG, "Valid trip info extracted: $tripInfo")
-                    tripInfo.isProfitable = tripAnalyzer.calculateProfitability(tripInfo)
-                    tripOverlay.showTripAnalysis(tripInfo)
-                } else {
-                    Log.d(TAG, "No valid trip info found in $packageName")
-                }
+            // Rate limiting - only update at most every MIN_UPDATE_INTERVAL ms
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+                Log.d(TAG, "Skipping update - rate limited (${currentTime - lastUpdateTime}ms since last update)")
+                return
+            }
+            lastUpdateTime = currentTime
+            
+            // Extract trip information from UI hierarchy using the specialized extractor
+            val tripInfo = extractTripInfoFromUI(rootInActiveWindow, packageName)
+            if (tripInfo != null && tripInfo.isValid()) {
+                Log.d(TAG, "Valid trip info extracted from $packageName: $tripInfo")
+                tripInfo.isProfitable = tripAnalyzer.calculateProfitability(tripInfo)
+                Log.d(TAG, "Calling overlay.showTripAnalysis for $packageName (isProfitable=${tripInfo.isProfitable})")
+                tripOverlay.showTripAnalysis(tripInfo)
             } else {
-                // Hide overlay when not in ride apps
+                Log.d(TAG, "No valid trip info found in $packageName, hiding overlay")
+                tripOverlay.hide()
+            }
+        } else {
+            // Only hide overlay when switching away from ride apps
+            if (lastPackageName != packageName) {
                 tripOverlay.hide()
             }
         }
     }
-    
+
     /**
      * Check if the package is a target ride app (Uber or DiDi)
      */
@@ -63,11 +85,7 @@ class RideAccessibilityService : AccessibilityService() {
         )
         
         val didiPackages = listOf(
-            "com.didiglobal.driver",
-            "com.didi.sd.passenger",
-            "com.didi.sdk.passenger",
-            "com.didi.driver",
-            "com.didi.global.driver"
+            "com.didiglobal.driver"
         )
         
         // Also include test app
