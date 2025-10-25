@@ -20,7 +20,7 @@ class RideAccessibilityService : AccessibilityService() {
     private var isMonitoring = false
     private var lastPackageName: String? = null
     private var lastUpdateTime: Long = 0
-    private val MIN_UPDATE_INTERVAL = 300L // Increased to 300ms to reduce system load on mid to low-end devices
+    private val MIN_UPDATE_INTERVAL = 500L // Increased to 500ms to reduce system load on low-end devices
     
     override fun onServiceConnected() {
         super.onServiceConnected()

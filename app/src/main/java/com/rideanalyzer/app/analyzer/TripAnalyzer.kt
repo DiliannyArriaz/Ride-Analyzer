@@ -22,7 +22,7 @@ class TripAnalyzer(context: Context) {
     private val context = context // Store context for permission checking
     private var showAllTextForTesting = false // Flag to control whether to show all detected text
     private var lastAnalysisTime: Long = 0
-    private val MIN_ANALYSIS_INTERVAL = 500L // Minimum time between analyses to prevent excessive processing
+    private val MIN_ANALYSIS_INTERVAL = 1000L // Increased to 1 second to reduce load on low-end devices
     
     // Configuration parameters (kept for API compatibility but using original logic)
     var desiredHourlyRate: Double = 10000.0 // ARS per hour
@@ -424,57 +424,119 @@ class TripAnalyzer(context: Context) {
             }
         }
 
-        // Extract distance and time for both pickup and trip
-        var pickupMinutes = 0
-        var pickupDistance = 0.0
-        var tripMinutes = 0
-        var tripDistance = 0.0
-
-        // Primero busca el tiempo/distancia de recogida
-        val pickupMatcher = PICKUP_PATTERN.matcher(originalText)
-        var pickupCount = 0
-        while (pickupMatcher.find()) {
-            pickupCount++
-            val minutes = pickupMatcher.group(1)?.toIntOrNull() ?: 0
-            val distance = pickupMatcher.group(2)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
-            if (minutes > pickupMinutes) {
-                pickupMinutes = minutes
-                pickupDistance = distance
+        // Extract distance and time with improved pattern matching
+        var totalDistance = 0.0
+        var totalMinutes = 0
+        
+        // First try to find the most comprehensive distance/time pattern
+        val comprehensivePattern = Regex("(\\d+)\\s*min\\s*\\(?([^)]*\\d+[,.]\\d+\\s*km|\\d+[,.]\\d+\\s*km[^)]*)\\)?", RegexOption.IGNORE_CASE)
+        val comprehensiveMatches = comprehensivePattern.findAll(originalText).toList()
+        
+        if (comprehensiveMatches.isNotEmpty()) {
+            // Take the match with the highest minutes value
+            var maxMinutes = 0
+            var bestMatch: MatchResult? = null
+            
+            comprehensiveMatches.forEach { match ->
+                val minutes = match.groupValues[1].toIntOrNull() ?: 0
+                if (minutes > maxMinutes) {
+                    maxMinutes = minutes
+                    bestMatch = match
+                }
+                Log.d(TAG, "Comprehensive pattern match: ${match.value}")
             }
-            Log.d(TAG, "Pickup match #$pickupCount: ${minutes}min, ${distance}km (${pickupMatcher.group()})")
-        }
-        if (pickupCount > 0) {
-            Log.d(TAG, "Selected pickup time/distance: ${pickupMinutes}min, ${pickupDistance}km")
-        }
-
-        // Luego busca el tiempo/distancia del viaje principal
-        val tripMatcher = TRIP_PATTERN.matcher(originalText)
-        var tripCount = 0
-        while (tripMatcher.find()) {
-            tripCount++
-            val minutes = tripMatcher.group(1)?.toIntOrNull() ?: 0
-            val distance = tripMatcher.group(2)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
-            if (minutes > tripMinutes) {
-                tripMinutes = minutes
-                tripDistance = distance
+            
+            bestMatch?.let { match ->
+                totalMinutes = match.groupValues[1].toIntOrNull() ?: 0
+                
+                // Extract distance from the second group
+                val distanceText = match.groupValues[2]
+                val distancePattern = Regex("(\\d+[,.]\\d+)\\s*km", RegexOption.IGNORE_CASE)
+                val distanceMatch = distancePattern.find(distanceText)
+                distanceMatch?.let {
+                    totalDistance = it.groupValues[1].replace(',', '.').toDoubleOrNull() ?: 0.0
+                }
+                
+                Log.d(TAG, "Selected comprehensive match - Time: ${totalMinutes}min, Distance: ${totalDistance}km")
             }
-            Log.d(TAG, "Trip match #$tripCount: ${minutes}min, ${distance}km (${tripMatcher.group()})")
         }
-        if (tripCount > 0) {
-            Log.d(TAG, "Selected trip time/distance: ${tripMinutes}min, ${tripDistance}km")
+        
+        // If comprehensive pattern didn't work, try individual patterns
+        if (totalDistance == 0.0 || totalMinutes == 0) {
+            Log.d(TAG, "Comprehensive pattern didn't match, trying individual patterns")
+            
+            // Find maximum distance using generic pattern
+            val distanceMatcher = DISTANCE_PATTERN.matcher(originalText)
+            var maxDistance = 0.0
+            var distanceCount = 0
+            while (distanceMatcher.find()) {
+                distanceCount++
+                val distance = distanceMatcher.group(1)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
+                if (distance > maxDistance) {
+                    maxDistance = distance
+                    Log.d(TAG, "Generic distance match #$distanceCount: ${distance}km (${distanceMatcher.group()})")
+                }
+            }
+            
+            // Find maximum time using generic pattern
+            val timeMatcher = TIME_PATTERN.matcher(originalText)
+            var maxMinutes = 0
+            var timeCount = 0
+            while (timeMatcher.find()) {
+                timeCount++
+                val minutes = timeMatcher.group(1)?.toIntOrNull() ?: 0
+                if (minutes > maxMinutes) {
+                    maxMinutes = minutes
+                    Log.d(TAG, "Generic time match #$timeCount: ${minutes}min (${timeMatcher.group()})")
+                }
+            }
+            
+            // Only update if we found better values
+            if (maxDistance > totalDistance) {
+                totalDistance = maxDistance
+            }
+            if (maxMinutes > totalMinutes) {
+                totalMinutes = maxMinutes
+            }
+            
+            Log.d(TAG, "Generic pattern results - Distance: ${totalDistance}km, Time: ${totalMinutes}min")
         }
-
-        // Suma total de tiempo y distancia
-        var totalMinutes = pickupMinutes + tripMinutes
-        var totalDistance = pickupDistance + tripDistance
-        Log.d(TAG, "Total time/distance: ${totalMinutes}min (${pickupMinutes}+${tripMinutes}), ${totalDistance}km (${pickupDistance}+${tripDistance})")
-
-        // Si no se encontraron los patrones de viaje/recogida, intenta con los patrones genéricos
-        if (totalDistance == 0.0 && totalMinutes == 0) {
-            // Find the maximum values from generic patterns
-            val genericValues = findGenericValues(originalText)
-            totalDistance = if (genericValues.first > 0) genericValues.first else totalDistance
-            totalMinutes = if (genericValues.second > 0) genericValues.second else totalMinutes
+        
+        // If still no data, try Uber-specific patterns
+        if (totalDistance == 0.0 || totalMinutes == 0) {
+            Log.d(TAG, "Trying Uber-specific patterns")
+            
+            // Try pickup pattern
+            val pickupMatcher = PICKUP_PATTERN.matcher(originalText)
+            var pickupCount = 0
+            while (pickupMatcher.find()) {
+                pickupCount++
+                val minutes = pickupMatcher.group(1)?.toIntOrNull() ?: 0
+                val distance = pickupMatcher.group(2)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
+                if (minutes > totalMinutes) {
+                    totalMinutes = minutes
+                }
+                if (distance > totalDistance) {
+                    totalDistance = distance
+                }
+                Log.d(TAG, "Pickup match #$pickupCount: ${minutes}min, ${distance}km (${pickupMatcher.group()})")
+            }
+            
+            // Try trip pattern
+            val tripMatcher = TRIP_PATTERN.matcher(originalText)
+            var tripCount = 0
+            while (tripMatcher.find()) {
+                tripCount++
+                val minutes = tripMatcher.group(1)?.toIntOrNull() ?: 0
+                val distance = tripMatcher.group(2)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
+                if (minutes > totalMinutes) {
+                    totalMinutes = minutes
+                }
+                if (distance > totalDistance) {
+                    totalDistance = distance
+                }
+                Log.d(TAG, "Trip match #$tripCount: ${minutes}min, ${distance}km (${tripMatcher.group()})")
+            }
         }
 
         // Update tripInfo with calculated values

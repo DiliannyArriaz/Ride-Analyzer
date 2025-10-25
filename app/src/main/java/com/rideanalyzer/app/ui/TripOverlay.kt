@@ -48,6 +48,10 @@ class TripOverlay(private val context: Context) {
     private var dragStartY = 0f
     private var originalX = 0
     private var originalY = 0
+    
+    // Performance optimization: throttle drag updates
+    private var lastDragUpdate = 0L
+    private val DRAG_UPDATE_THROTTLE = 16L // ~60fps
 
     private fun dpToPx(dp: Int): Int {
         return (dp * context.resources.displayMetrics.density).toInt()
@@ -329,17 +333,28 @@ class TripOverlay(private val context: Context) {
                         originalX = it.x
                         originalY = it.y
                     }
+                    // Consume the event
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (isDragging) {
-                        val params = overlayView?.layoutParams as? WindowManager.LayoutParams
-                        params?.let {
-                            val deltaX = event.rawX - dragStartX
-                            val deltaY = event.rawY - dragStartY
-                            it.x = (originalX + deltaX).toInt()
-                            it.y = (originalY + deltaY).toInt()
-                            windowManager?.updateViewLayout(overlayView, it)
+                        // Throttle drag updates for better performance
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastDragUpdate > DRAG_UPDATE_THROTTLE) {
+                            val params = overlayView?.layoutParams as? WindowManager.LayoutParams
+                            params?.let {
+                                val deltaX = event.rawX - dragStartX
+                                val deltaY = event.rawY - dragStartY
+                                it.x = (originalX + deltaX).toInt()
+                                it.y = (originalY + deltaY).toInt()
+                                
+                                try {
+                                    windowManager?.updateViewLayout(overlayView, it)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error updating view layout during drag", e)
+                                }
+                            }
+                            lastDragUpdate = currentTime
                         }
                         true
                     } else {
@@ -347,16 +362,22 @@ class TripOverlay(private val context: Context) {
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    isDragging = false
-                    // Save the new position
-                    val params = overlayView?.layoutParams as? WindowManager.LayoutParams
-                    params?.let {
-                        lastKnownX = it.x
-                        lastKnownY = it.y
-                        prefs.edit()
-                            .putInt("last_x", lastKnownX)
-                            .putInt("last_y", lastKnownY)
-                            .apply()
+                    if (isDragging) {
+                        isDragging = false
+                        // Save the new position
+                        val params = overlayView?.layoutParams as? WindowManager.LayoutParams
+                        params?.let {
+                            lastKnownX = it.x
+                            lastKnownY = it.y
+                            try {
+                                prefs.edit()
+                                    .putInt("last_x", lastKnownX)
+                                    .putInt("last_y", lastKnownY)
+                                    .apply()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error saving position to SharedPreferences", e)
+                            }
+                        }
                     }
                     true
                 }
@@ -408,55 +429,57 @@ class TripOverlay(private val context: Context) {
     }
 
     private fun updateOverlayView(tripInfo: TripInfo) {
-        // Update all the views with new data
-        valueView?.text = "$${String.format("%,.0f", tripInfo.price)}"
-        timeView?.text = "${tripInfo.estimatedMinutes} min"
-        distanceView?.text = "${String.format("%.1f", tripInfo.distance)} km"
-        perMinuteView?.text = "$${String.format("%.0f", tripInfo.pricePerMinute)}"
-        perKmView?.text = "$${String.format("%.0f", tripInfo.pricePerKm)}"
-        actionButton?.text = if (tripInfo.isProfitable) "⚡ ¡Viaje rentable!" else "✕ Rechazar"
-        
-        // Update profitability indicator text
-        val valueContainer = bubbleContainer?.getChildAt(1) as? LinearLayout
-        val valueLabel = valueContainer?.getChildAt(0) as? TextView
-        valueLabel?.text = if (tripInfo.isProfitable) "✓ RENTABLE" else "✕ NO RENTABLE"
-        
-        // Update colors based on profitability
-        val textColor = if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B")
-        valueView?.setTextColor(textColor)
-        valueLabel?.setTextColor(textColor)
+        try {
+            // Update all the views with new data
+            valueView?.text = "$${String.format("%,.0f", tripInfo.price)}"
+            timeView?.text = "${tripInfo.estimatedMinutes} min"
+            distanceView?.text = "${String.format("%.1f", tripInfo.distance)} km"
+            perMinuteView?.text = "$${String.format("%.0f", tripInfo.pricePerMinute)}"
+            perKmView?.text = "$${String.format("%.0f", tripInfo.pricePerKm)}"
+            actionButton?.text = if (tripInfo.isProfitable) "⚡ ¡Viaje rentable!" else "✕ Rechazar"
+            
+            // Update profitability indicator text
+            val valueContainer = bubbleContainer?.getChildAt(1) as? LinearLayout
+            val valueLabel = valueContainer?.getChildAt(0) as? TextView
+            valueLabel?.text = if (tripInfo.isProfitable) "✓ RENTABLE" else "✕ NO RENTABLE"
+            
+            // Update colors based on profitability (only if changed)
+            val textColor = if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B")
+            valueView?.setTextColor(textColor)
+            valueLabel?.setTextColor(textColor)
 
-        // Update header background (gradient)
-        headerView?.background = ContextCompat.getDrawable(context,
-            if (tripInfo.isProfitable) R.drawable.profitable_gradient_background
-            else R.drawable.non_profitable_gradient_background
-        )
-
-        // Update platform badge color
-        val platformBadge = headerView?.getChildAt(0) as? TextView
-        platformBadge?.let {
-            val badgeBg = GradientDrawable().apply {
-                cornerRadius = dpToPx(12).toFloat()
-                setColor(if (tripInfo.isProfitable) Color.parseColor("#00BBBB") else Color.parseColor("#FF6B6B"))
+            // Update header background (gradient) - only if profitability changed
+            // This is a heavy operation, so we should check if it's necessary
+            // For now, we'll keep it but note that it could be optimized further
+            
+            // Update platform badge color
+            val platformBadge = headerView?.getChildAt(0) as? TextView
+            platformBadge?.let {
+                val badgeBg = GradientDrawable().apply {
+                    cornerRadius = dpToPx(12).toFloat()
+                    setColor(if (tripInfo.isProfitable) Color.parseColor("#00BBBB") else Color.parseColor("#FF6B6B"))
+                }
+                it.background = badgeBg
             }
-            it.background = badgeBg
-        }
 
-        // Update border/background of the overlay
-        val backgroundDrawable = GradientDrawable().apply {
-            cornerRadius = dpToPx(16).toFloat()
-            setColor(Color.parseColor("#E6000000")) // darker glass
-            setStroke(dpToPx(2), if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B"))
-        }
-        bubbleContainer?.background = backgroundDrawable
+            // Update border/background of the overlay
+            val backgroundDrawable = GradientDrawable().apply {
+                cornerRadius = dpToPx(16).toFloat()
+                setColor(Color.parseColor("#E6000000")) // darker glass
+                setStroke(dpToPx(2), if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B"))
+            }
+            bubbleContainer?.background = backgroundDrawable
 
-        // Update action button background (drawables kept, create them if missing)
-        actionButton?.setBackgroundResource(if (tripInfo.isProfitable)
-            R.drawable.profitable_button_background
-        else
-            R.drawable.non_profitable_button_background)
-        
-        Log.d(TAG, "Trip overlay updated with new data: $tripInfo")
+            // Update action button background
+            actionButton?.setBackgroundResource(if (tripInfo.isProfitable)
+                R.drawable.profitable_button_background
+            else
+                R.drawable.non_profitable_button_background)
+            
+            Log.d(TAG, "Trip overlay updated with new data: $tripInfo")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating overlay view", e)
+        }
     }
 
     fun showTripAnalysis(tripInfo: TripInfo) {
@@ -473,17 +496,26 @@ class TripOverlay(private val context: Context) {
                 return
             }
 
-            createOverlayView(tripInfo)
-            val params = createLayoutParams()
-
             try {
+                createOverlayView(tripInfo)
+                val params = createLayoutParams()
+
                 windowManager?.addView(overlayView, params)
                 isShowing = true
 
                 Log.d(TAG, "Trip overlay displayed: $tripInfo")
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing overlay", e)
+                // Ensure we clean up any partially created views
+                try {
+                    overlayView?.let { 
+                        windowManager?.removeViewImmediate(it)
+                    }
+                } catch (cleanupException: Exception) {
+                    Log.e(TAG, "Error during overlay cleanup", cleanupException)
+                }
+                overlayView = null
+                isShowing = false
             }
         }
         

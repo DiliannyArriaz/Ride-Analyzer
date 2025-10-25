@@ -1,0 +1,136 @@
+    private fun createHeader(tripInfo: TripInfo) {
+        headerView = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dpToPx(6), dpToPx(4), dpToPx(6), dpToPx(4))
+            background = ContextCompat.getDrawable(context,
+                if (tripInfo.isProfitable) R.drawable.rentable_gradient
+                else R.drawable.no_rentable_gradient
+            )
+        }
+
+        // Platform badge
+        val platformBadge = TextView(context).apply {
+            text = tripInfo.platform ?: "Unknown"
+            setTextColor(Color.WHITE)
+            textSize = 10f
+            setPadding(dpToPx(6), dpToPx(2), dpToPx(6), dpToPx(2))
+            background = ContextCompat.getDrawable(context,
+                if (tripInfo.isProfitable) R.drawable.rentable_badge_background
+                else R.drawable.no_rentable_badge_background
+            )
+        }
+        headerView?.addView(platformBadge)
+
+        // Spacer
+        val spacer = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+        }
+        headerView?.addView(spacer)
+
+        // Expand button
+        expandButton = ImageView(context).apply {
+            setImageResource(if (isExpanded) R.drawable.ic_minimize else R.drawable.ic_maximize)
+            setColorFilter(Color.WHITE)
+            setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
+            background = GradientDrawable().apply {
+                cornerRadius = dpToPx(4).toFloat()
+                setColor(Color.parseColor("#33FFFFFF"))
+            }
+            setOnClickListener {
+                toggleExpansion()
+            }
+        }
+        headerView?.addView(expandButton)
+
+        bubbleContainer?.addView(headerView)
+    }
+
+    private fun createValueSection(tripInfo: TripInfo) {
+        val valueContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6))
+            val valueBg = GradientDrawable().apply {
+                cornerRadius = dpToPx(8).toFloat()
+                setColor(Color.parseColor("#33FFFFFF"))
+            }
+            background = valueBg
+        }
+
+        valueView = TextView(context).apply {
+            text = "$${String.format("%,.0f", tripInfo.price)}"
+            setTextColor(if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B"))
+            textSize = 24f
+            gravity = Gravity.CENTER
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        valueContainer.addView(valueView)
+        
+        bubbleContainer?.addView(valueContainer)
+    }
+
+    private fun createStatsContainer(tripInfo: TripInfo) {
+        statsContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4))
+            visibility = if (isExpanded) View.VISIBLE else View.GONE
+        }
+
+        // Contenedor de dos columnas
+        val statsLayout = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 2f
+        }
+
+        // Columna izquierda
+        val leftColumn = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        // Columna derecha
+        val rightColumn = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        timeView = createCompactStatView("Tiempo", "${tripInfo.estimatedMinutes} min")
+        distanceView = createCompactStatView("Dist.", "${String.format("%.1f", tripInfo.distance)} km")
+        perMinuteView = createCompactStatView("\$/min", "$${tripInfo.pricePerMinute.toInt()}")
+        perKmView = createCompactStatView("\$/km", "$${tripInfo.pricePerKm.toInt()}")
+
+        leftColumn.addView(timeView)
+        leftColumn.addView(perMinuteView)
+        rightColumn.addView(distanceView)
+        rightColumn.addView(perKmView)
+
+        statsLayout.addView(leftColumn)
+        statsLayout.addView(rightColumn)
+        statsContainer?.addView(statsLayout)
+        bubbleContainer?.addView(statsContainer)
+    }
+
+    private fun createCompactStatView(label: String, value: String): TextView {
+        return TextView(context).apply {
+            text = "$label\n$value"
+            setTextColor(Color.WHITE)
+            textSize = 10f
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(2), dpToPx(4), dpToPx(2), dpToPx(4))
+        }
+    }
+
+    private fun createActionButton(tripInfo: TripInfo) {
+        actionButton = TextView(context).apply {
+            text = if (tripInfo.isProfitable) "⚡ Aceptar" else "✕ Rechazar"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+            background = ContextCompat.getDrawable(context,
+                if (tripInfo.isProfitable) R.drawable.rentable_button_background
+                else R.drawable.no_rentable_button_background
+            )
+            setOnClickListener { hide() }
+        }
+        bubbleContainer?.addView(actionButton)
+    }

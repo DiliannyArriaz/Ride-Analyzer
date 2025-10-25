@@ -1,0 +1,335 @@
+package com.rideanalyzer.app.ui
+
+import android.content.Context
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowManager
+import android.widget.*
+import androidx.core.content.ContextCompat
+import androidx.core.content.getSystemService
+import com.rideanalyzer.app.R
+import com.rideanalyzer.app.model.TripInfo
+
+class TripOverlay(private val context: Context) {
+    private val windowManager = context.getSystemService<WindowManager>()
+    private val prefs = context.getSharedPreferences("TripOverlayPrefs", Context.MODE_PRIVATE)
+    private var overlayView: FrameLayout? = null
+    private var bubbleContainer: LinearLayout? = null
+    private var headerView: LinearLayout? = null
+    private var valueView: TextView? = null
+    private var timeView: TextView? = null
+    private var distanceView: TextView? = null
+    private var perMinuteView: TextView? = null
+    private var perKmView: TextView? = null
+    private var actionButton: TextView? = null
+    private var expandButton: ImageView? = null
+    private var statsContainer: LinearLayout? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val hideRunnable = Runnable { hide() }
+    var isShowing = false
+        private set
+    private var isExpanded = true // Default to expanded view
+    private var isDragging = false
+    private var dragStartX = 0f
+    private var dragStartY = 0f
+    private var originalX = 0
+    private var originalY = 0
+    
+    // Última posición conocida
+    private var lastKnownX = prefs.getInt("last_x", dpToPx(20))
+    private var lastKnownY = prefs.getInt("last_y", dpToPx(100))
+
+    private fun createOverlayView(tripInfo: TripInfo) {
+        overlayView = FrameLayout(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        bubbleContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = FrameLayout.LayoutParams(dpToPx(160), if (isExpanded) dpToPx(280) else dpToPx(200))
+            
+            val backgroundDrawable = GradientDrawable().apply {
+                cornerRadius = dpToPx(16).toFloat()
+                setColor(Color.parseColor("#E6121212"))
+                setStroke(2, if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF0000"))
+            }
+            background = backgroundDrawable
+        }
+
+        createHeader(tripInfo)
+        createValueSection(tripInfo)
+        createStatsContainer(tripInfo)
+        createActionButton(tripInfo)
+        setupDragging()
+        
+        overlayView?.addView(bubbleContainer)
+    }
+
+    private fun createHeader(tripInfo: TripInfo) {
+        headerView = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dpToPx(8), dpToPx(6), dpToPx(8), dpToPx(6))
+            background = ContextCompat.getDrawable(context,
+                if (tripInfo.isProfitable) R.drawable.rentable_gradient
+                else R.drawable.no_rentable_gradient
+            )
+        }
+
+        // Platform badge
+        val platformBadge = TextView(context).apply {
+            text = tripInfo.platform ?: "Unknown"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4))
+            background = ContextCompat.getDrawable(context,
+                if (tripInfo.isProfitable) R.drawable.rentable_badge_background
+                else R.drawable.no_rentable_badge_background
+            )
+        }
+        headerView?.addView(platformBadge)
+
+        // Spacer
+        val spacer = View(context).apply {
+            layoutParams = LinearLayout.LayoutParams(0, 0, 1f)
+        }
+        headerView?.addView(spacer)
+
+        // Expand button
+        expandButton = ImageView(context).apply {
+            setImageResource(if (isExpanded) R.drawable.ic_minimize else R.drawable.ic_maximize)
+            setColorFilter(Color.WHITE)
+            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+            background = GradientDrawable().apply {
+                cornerRadius = dpToPx(4).toFloat()
+                setColor(Color.parseColor("#33FFFFFF"))
+            }
+            setOnClickListener {
+                toggleExpansion()
+            }
+        }
+        headerView?.addView(expandButton)
+
+        bubbleContainer?.addView(headerView)
+    }
+
+    private fun createValueSection(tripInfo: TripInfo) {
+        val valueContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
+            val valueBg = GradientDrawable().apply {
+                cornerRadius = dpToPx(12).toFloat()
+                setColor(Color.parseColor("#33FFFFFF"))
+            }
+            background = valueBg
+        }
+
+        valueView = TextView(context).apply {
+            text = "$${String.format("%,.0f", tripInfo.price)}"
+            setTextColor(if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B"))
+            textSize = 28f
+            gravity = Gravity.CENTER
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        valueContainer.addView(valueView)
+        
+        bubbleContainer?.addView(valueContainer)
+    }
+
+    private fun createStatsContainer(tripInfo: TripInfo) {
+        statsContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
+            visibility = if (isExpanded) View.VISIBLE else View.GONE
+        }
+
+        // Stats grid
+        val statsGrid = GridLayout(context).apply {
+            rowCount = 2
+            columnCount = 2
+        }
+
+        timeView = createStatView("Tiempo", "${tripInfo.estimatedMinutes} min")
+        distanceView = createStatView("Distancia", "${String.format("%.1f", tripInfo.distance)} km")
+        perMinuteView = createStatView("$/min", "$${tripInfo.pricePerMinute.toInt()}")
+        perKmView = createStatView("$/km", "$${tripInfo.pricePerKm.toInt()}")
+
+        statsGrid.addView(timeView)
+        statsGrid.addView(distanceView)
+        statsGrid.addView(perMinuteView)
+        statsGrid.addView(perKmView)
+
+        statsContainer?.addView(statsGrid)
+        bubbleContainer?.addView(statsContainer)
+    }
+
+    private fun createStatView(label: String, value: String): TextView {
+        return TextView(context).apply {
+            text = "$label: $value"
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
+        }
+    }
+
+    private fun createActionButton(tripInfo: TripInfo) {
+        actionButton = TextView(context).apply {
+            text = if (tripInfo.isProfitable) "⚡ ¡Viaje rentable!" else "✕ Rechazar"
+            setTextColor(Color.WHITE)
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
+            background = ContextCompat.getDrawable(context,
+                if (tripInfo.isProfitable) R.drawable.rentable_button_background
+                else R.drawable.no_rentable_button_background
+            )
+            setOnClickListener { hide() }
+        }
+        bubbleContainer?.addView(actionButton)
+    }
+
+    private fun setupDragging() {
+        bubbleContainer?.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isDragging = true
+                    dragStartX = event.rawX
+                    dragStartY = event.rawY
+                    val params = overlayView?.layoutParams as? WindowManager.LayoutParams
+                    originalX = params?.x ?: 0
+                    originalY = params?.y ?: 0
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (isDragging) {
+                        val params = overlayView?.layoutParams as? WindowManager.LayoutParams
+                        params?.let { p ->
+                            p.x = (originalX + (event.rawX - dragStartX)).toInt()
+                            p.y = (originalY + (event.rawY - dragStartY)).toInt()
+                            windowManager?.updateViewLayout(overlayView, p)
+                            // Guardar la posición actual
+                            lastKnownX = p.x
+                            lastKnownY = p.y
+                        }
+                        true
+                    } else false
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (isDragging) {
+                        // Guardar la posición final en las preferencias
+                        prefs.edit().apply {
+                            putInt("last_x", lastKnownX)
+                            putInt("last_y", lastKnownY)
+                            apply()
+                        }
+                    }
+                    isDragging = false
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun toggleExpansion() {
+        isExpanded = !isExpanded
+        expandButton?.setImageResource(if (isExpanded) R.drawable.ic_minimize else R.drawable.ic_maximize)
+        statsContainer?.visibility = if (isExpanded) View.VISIBLE else View.GONE
+        
+        overlayView?.let { view ->
+            val params = view.layoutParams as WindowManager.LayoutParams
+            params.height = if (isExpanded) dpToPx(280) else dpToPx(200)
+            windowManager?.updateViewLayout(view, params)
+        }
+    }
+
+    private fun createLayoutParams(): WindowManager.LayoutParams {
+        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        return WindowManager.LayoutParams(
+            dpToPx(160), // Ancho más compacto
+            if (isExpanded) dpToPx(280) else dpToPx(200), // Altura variable
+            overlayType,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = lastKnownX
+            y = lastKnownY
+        }
+    }
+
+    private fun updateOverlayView(tripInfo: TripInfo) {
+        valueView?.text = "$${String.format("%,.0f", tripInfo.price)}"
+        timeView?.text = "Tiempo: ${tripInfo.estimatedMinutes} min"
+        distanceView?.text = "Distancia: ${String.format("%.1f", tripInfo.distance)} km"
+        perMinuteView?.text = "$/min: $${tripInfo.pricePerMinute.toInt()}"
+        perKmView?.text = "$/km: $${tripInfo.pricePerKm.toInt()}"
+        
+        val textColor = if (tripInfo.isProfitable) Color.parseColor("#00FFFF") else Color.parseColor("#FF6B6B")
+        valueView?.setTextColor(textColor)
+        
+        actionButton?.text = if (tripInfo.isProfitable) "⚡ ¡Viaje rentable!" else "✕ Rechazar"
+        actionButton?.background = ContextCompat.getDrawable(context,
+            if (tripInfo.isProfitable) R.drawable.rentable_button_background
+            else R.drawable.no_rentable_button_background
+        )
+    }
+
+    fun hide() {
+        handler.removeCallbacks(hideRunnable)
+        if (isShowing && overlayView != null) {
+            try {
+                windowManager?.removeView(overlayView)
+                isShowing = false
+                overlayView = null
+                bubbleContainer = null
+                headerView = null
+                valueView = null
+                timeView = null
+                distanceView = null
+                perMinuteView = null
+                perKmView = null
+                actionButton = null
+                expandButton = null
+                statsContainer = null
+                Log.d(TAG, "Trip overlay hidden")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error hiding overlay", e)
+            }
+        }
+    }
+
+    private fun hasOverlayPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            android.provider.Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
+    }
+
+    companion object {
+        private const val TAG = "TripOverlay"
+    }
+}
