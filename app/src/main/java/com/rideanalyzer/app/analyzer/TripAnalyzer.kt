@@ -22,7 +22,7 @@ class TripAnalyzer(context: Context) {
     private val context = context // Store context for permission checking
     private var showAllTextForTesting = false // Flag to control whether to show all detected text
     private var lastAnalysisTime: Long = 0
-    private val MIN_ANALYSIS_INTERVAL = 1000L // Increased to 1 second to reduce load on low-end devices
+    private val MIN_ANALYSIS_INTERVAL = 500L // Reduced to 500ms for faster updates with multiple trips
     
     // Configuration parameters (kept for API compatibility but using original logic)
     var desiredHourlyRate: Double = 10000.0 // ARS per hour

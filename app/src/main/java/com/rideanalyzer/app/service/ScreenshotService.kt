@@ -504,7 +504,7 @@ class ScreenshotService : Service() {
         private const val TAG = "ScreenshotService"
         private const val SERVICE_ID = 1001
         private const val CHANNEL_ID = "ScreenCaptureChannel"
-        private const val CAPTURE_INTERVAL_MS: Long = 2000L // Increased to 2 seconds to reduce load on low-end devices
-        private const val IMAGE_CHANGE_THRESHOLD: Int = 50000 // Increased threshold to reduce false positives
+        private const val CAPTURE_INTERVAL_MS: Long = 1000L // Reduced to 1 second for faster updates with multiple trips
+        private const val IMAGE_CHANGE_THRESHOLD: Int = 50000 // Keep the same threshold
     }
 }
